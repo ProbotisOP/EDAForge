@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+
+# Engine output and caches (never commit user data or runs)
+runs/
+.edaforge/
+*.parquet
+
+# Node (apps/web, later phases)
+node_modules/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store

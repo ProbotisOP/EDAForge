@@ -1,0 +1,31 @@
+{#- Analyst lens for a two-group distribution shift. -#}
+# {{ facts.column|code }}: {{ facts.group_b|code }} vs {{ facts.group_a|code }}, difference {{ facts.mean_diff|num }}
+
+## Effect sizes
+
+| Measure | Estimate | {{ "%d%%"|format(effect.ci_level * 100) }} interval | Computed on |
+| --- | --- | --- | --- |
+| Difference in means ({{ facts.group_b|code }} − {{ facts.group_a|code }}) | {{ facts.mean_diff|num }}{% if effect.units %} {{ effect.units }}{% endif %} | {{ facts.mean_diff_ci_low|num }} to {{ facts.mean_diff_ci_high|num }} | {{ effect.split }} data |
+| Standardized difference (Cohen's d) | {{ effect.estimate|num }} | {{ effect.ci_low|num }} to {{ effect.ci_high|num }} | {{ effect.split }} data |
+| Chance a {{ facts.group_b|code }} record exceeds a {{ facts.group_a|code }} record | {{ facts.prob_superiority|pct }} | | {{ effect.split }} data |
+
+Smallest effect size of interest: Cohen's d = {{ effect.sesoi|num }}. {% if effect.estimate|abs >= effect.sesoi %}The estimate is at least that large.{% else %}The estimate is smaller than that.{% endif %}
+
+## Groups
+
+| Group | Rows | Mean |
+| --- | --- | --- |
+| {{ facts.group_a|code }} | {{ facts.n_a }} | {{ facts.mean_a|num }} |
+| {{ facts.group_b|code }} | {{ facts.n_b }} | {{ facts.mean_b|num }} |
+
+## Comparison with the search data
+
+On the exploration data, where the pattern was found, the difference in means was {{ facts.explore_mean_diff|num }}. Estimates from the search data tend to be optimistic; the table above uses data the search never saw where available.
+
+## Data-health caveats
+
+{% for c in f.caveats %}
+- {{ c }}
+{% else %}
+- None recorded. Data-health checks were not run for this analysis.
+{% endfor %}

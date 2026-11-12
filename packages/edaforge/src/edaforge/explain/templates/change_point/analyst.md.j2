@@ -1,0 +1,12 @@
+# Change in {{ facts.label }} on {{ facts.break }}: {{ facts.diff|signed }} [{{ facts.diff_low|num }}, {{ facts.diff_high|num }}]
+
+| Period | {{ facts.grain|capitalize }}s | Average {{ facts.label }} |
+| --- | --- | --- |
+| {{ facts.first_period }} to before {{ facts.break }} | {{ facts.periods_before }} | {{ facts.mean_before|num }} |
+| {{ facts.break }} to {{ facts.last_period }} | {{ facts.periods_after }} | {{ facts.mean_after|num }} |
+
+- Difference (after − before): {{ facts.diff|signed }}, 95% interval {{ facts.diff_low|num }} to {{ facts.diff_high|num }}{% if facts.pct_change is not none %}; relative change {{ facts.pct_change|pct(1) }}{% endif %}; in standard deviations of the series: {{ facts.std_shift|num }}.
+- Shape: {{ "a steady trend fits about as well as a step" if facts.gradual else "a step fits better than a steady trend" }}.
+{% if facts.stability is defined %}- Robustness: held in {{ facts.stability|pct }} of half-samples of rows; {{ ev.specs_consistent }} of {{ ev.specs_total }} checks agree.{% endif %}
+
+{% if f.caveats %}**Caveats:** {{ f.caveats|join(" ") }}{% endif %}

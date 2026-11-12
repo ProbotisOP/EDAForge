@@ -1,0 +1,7 @@
+# Method: change in level of {{ facts.label }}
+
+**Series.** Rows grouped per {{ facts.grain }} using {{ facts.time|code }} ({{ facts.n_periods }} periods{% if not facts.rows_series %}, periods with fewer than 3 rows dropped{% endif %}).
+
+**Test.** CUSUM statistic max |S_k| / (s √T); its null distribution is a sieve bootstrap: an AR(p ≤ 4, AIC) model fitted to the demeaned series simulates "no change" with resampled residuals. (Asymptotic HAC-based versions were rejected after simulation showed false-alarm rates up to three times nominal for autocorrelated series of this length.) The held-out rows re-test the same date with a fixed-break statistic under the same bootstrap; the interval is a percentile interval from step-model fits with AR-bootstrap errors.
+
+{% include "_partials/scientist_common.md.j2" %}

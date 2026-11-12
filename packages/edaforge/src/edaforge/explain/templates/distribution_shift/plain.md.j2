@@ -1,0 +1,15 @@
+{#- Plain lens for a difference in a column's distribution between two groups (for example two
+    files or sites). Facts: column, group_a, group_b, mean_a, mean_b, prob_superiority. -#}
+{% set higher = facts.mean_b > facts.mean_a %}
+# Average {{ facts.column|code }} is {{ hedge }} {{ "higher" if higher else "lower" }} in {{ facts.group_b|code }} than in {{ facts.group_a|code }}
+
+- **What we found:** on average, {{ facts.column|code }} is {{ facts.mean_b|num }} in {{ facts.group_b|code }} and {{ facts.mean_a|num }} in {{ facts.group_a|code }}{% if effect.units %} ({{ effect.units }}){% endif %}.
+- **In everyday terms:** in {{ facts.prob_superiority|natfreq }} random pairs of one {{ facts.group_b|code }} record and one {{ facts.group_a|code }} record, the {{ facts.group_b|code }} record has the larger value.
+- **How sure are we?** {{ grade_label|capitalize }} evidence (grade {{ grade }}): {{ grade_wording }}.
+{%- if conf.status == "confirmed" %} It held up on data the search never saw: on shuffled copies of that data, a gap this large {{ conf.p_value|shuffles(facts.permutation_max) }}.
+{%- elif conf.method == "none" %} There was too little data to set some aside for a second check, so treat this as a lead.
+{%- else %} It did not hold up clearly on data the search never saw.
+{%- endif %} The engine's own false-alarm rate on shuffled copies of your data has not been measured yet.
+- **What this does NOT mean:** it does not show that being in {{ facts.group_b|code }} is the reason for the gap. The two groups may differ in other ways, such as who is in them or how the data were recorded.
+- **What could make this wrong:** the sources may measure {{ facts.column|code }} differently (units, definitions, rounding); rows may not be independent, such as repeated records of the same customer; a few extreme values may sway the averages.
+- **What you could do next:** check that {{ facts.group_a|code }} and {{ facts.group_b|code }} record {{ facts.column|code }} the same way, then compare like with like (same period, same kind of record).

@@ -1,0 +1,33 @@
+# Local hooks only: every hook runs through the locked uv environment, so pre-commit needs no
+# network access and uses exactly the versions CI uses.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+      - id: pyright
+        name: pyright (strict)
+        entry: uv run pyright
+        language: system
+        pass_filenames: false
+        types_or: [python, pyi]
+      - id: license-gate
+        name: license gate (core closure)
+        entry: uv run edaforge-license-gate python --root edaforge
+        language: system
+        pass_filenames: false
+        files: ^(pyproject\.toml|uv\.lock|packages/.*/pyproject\.toml|license-policy\.toml)$
+      - id: citation-coverage
+        name: citation coverage
+        entry: uv run edaforge-verify-refs coverage
+        language: system
+        pass_filenames: false
+        files: ^docs/(PROJECT_PROMPT\.md|references\.bib|references-supplement\.toml)$

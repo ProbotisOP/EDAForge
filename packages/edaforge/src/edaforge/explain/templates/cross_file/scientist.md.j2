@@ -1,0 +1,5 @@
+# Method: {{ facts.column|code }} across sources
+
+**Test.** {% if facts.numeric %}Two-sample Kolmogorov–Smirnov test (any difference in distribution){% else %}Pearson χ² test of label shares between the two sources{% endif %} for every column and pair of sources; one Benjamini–Hochberg family. Sources are identified by {{ facts.env|code }}.{% if facts.numeric %} A ratio of medians within 15% of ×100 or ×1,000 (or their inverses) is flagged as a possible unit mismatch; this is a heuristic hint, not a test.{% endif %}
+
+{% include "_partials/scientist_common.md.j2" %}

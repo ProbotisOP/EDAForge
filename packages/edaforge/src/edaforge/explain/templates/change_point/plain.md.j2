@@ -1,0 +1,5 @@
+# {% if facts.gradual %}{{ facts.label|capitalize }} per {{ facts.grain }} drifted {{ "up" if facts.diff > 0 else "down" }} over time{% else %}{{ facts.label|capitalize }} per {{ facts.grain }} {{ "shifted up" if facts.diff > 0 else "shifted down" }} around {{ facts.break }}{% endif %}
+
+- **What was found:** before {{ facts.break }} the {{ facts.label }} per {{ facts.grain }} averaged {{ facts.mean_before|num }}; from then on it averaged {{ facts.mean_after|num }}{% if facts.pct_change is not none %} ({{ facts.pct_change|signed }} as a share: {{ facts.pct_change|pct }}){% endif %}.{% if facts.gradual %} A steady trend describes the periods better than a single step, so read {{ facts.break }} as the middle of a gradual drift, not as the date of a sudden change.{% endif %}
+- **Why it matters:** comparisons across {{ facts.break }} mix two different levels; averages over the whole period hide the shift.
+{% include "_partials/plain_footer.md.j2" %}

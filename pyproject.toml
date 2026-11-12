@@ -1,0 +1,121 @@
+# Workspace root for EDAForge. This file is not a published package.
+# The engine lives in packages/edaforge; see docs/adr/0002-monorepo-and-uv-workspace.md.
+
+[tool.uv]
+# The root is a virtual workspace: it has no [project] table of its own.
+required-version = ">=0.9"
+
+[tool.uv.workspace]
+members = ["packages/*", "benchmarks", "tools"]
+
+[tool.uv.sources]
+edaforge = { workspace = true }
+edaforge-plugin-example = { workspace = true }
+edaforge-benchmarks = { workspace = true }
+edaforge-devtools = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "edaforge",
+    "edaforge-plugin-example",
+    "edaforge-benchmarks",
+    "edaforge-devtools",
+    "pytest>=9.0",
+    "hypothesis>=6.140",        # MPL-2.0: dev-only, unmodified (license policy section 13.3)
+    "ruff>=0.15",
+    "pyright>=1.1.410",
+    "pre-commit>=4.3",
+    "scipy-stubs>=1.18",
+    "types-PyYAML>=6.0.12",
+    "statsmodels>=0.15",        # reference implementation for equivalence tests
+    "httpx2>=2.16.0",
+    "playwright==1.64.1",       # Apache-2.0: dev-only, browser test of the golden path
+]
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["packages/edaforge/src", "packages/edaforge-plugin-example/src", "benchmarks/src", "tools/src"]
+extend-exclude = ["docs/archive/PROJECT_PROMPT.v1.md", "apps/web"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "B", "UP", "N", "S", "SIM", "RUF", "NPY", "PT", "C4", "PIE",
+    "RET", "TID", "DTZ", "T20", "BLE", "PERF", "PLE", "PLW", "PLC", "ISC", "PGH", "FURB",
+]
+ignore = [
+    "ISC001",   # conflicts with the formatter
+    "RUF001",   # ambiguous unicode in strings: statistical text uses Greek letters on purpose
+    "RUF002",
+    "RUF003",
+    "PLC0415",  # local imports keep optional heavy dependencies lazy
+    "RUF012",   # Pydantic copies mutable defaults per instance; contracts rely on that
+    "N818",     # domain names (ContractViolation, ReproductionMismatch) read better without "Error"
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S311", "PLR2004", "N802", "N803", "N806", "T20"]
+"benchmarks/**" = ["S311", "T20"]
+"examples/**" = ["S101", "T20"]
+"tools/src/edaforge_devtools/**" = ["T20", "S603", "S310"]
+"packages/edaforge/src/edaforge/cli.py" = ["T201"]
+# recipe_sql only writes an exported SQL script (never executed by the engine); every identifier
+# and literal in it is escaped by _q and _lit.
+"packages/edaforge/src/edaforge/clean/__init__.py" = ["S608"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[tool.ruff.lint.pep8-naming]
+# Statistical code uses conventional single-letter capitals (X, Y, Z, N, K).
+ignore-names = ["X*", "Y*", "Z*", "N", "K", "B", "H", "P", "Q", "T", "U", "V", "W", "A", "C", "D", "E", "F", "G", "L", "M", "R", "S"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+# ---------------------------------------------------------------- pyright
+[tool.pyright]
+include = [
+    "packages/edaforge/src",
+    "packages/edaforge/tests",
+    "packages/edaforge-plugin-example/src",
+    "packages/edaforge-plugin-example/tests",
+    "benchmarks/src",
+    "benchmarks/tests",
+    "tools/src",
+    "tools/tests",
+]
+# Library code is checked in strict mode; tests use the standard mode.
+strict = [
+    "packages/edaforge/src",
+    "packages/edaforge-plugin-example/src",
+    "benchmarks/src",
+    "tools/src",
+]
+typeCheckingMode = "standard"
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+reportMissingModuleSource = "none"
+reportUnnecessaryTypeIgnoreComment = "error"
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = [
+    "packages/edaforge/tests",
+    "packages/edaforge-plugin-example/tests",
+    "benchmarks/tests",
+    "tools/tests",
+]
+addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
+xfail_strict = true
+markers = [
+    "slow: long-running test (excluded from the quick loop with -m 'not slow')",
+    "gate: a statistical CI gate from section 16.3",
+    "network: requires network access (skipped when offline)",
+    "e2e: drives the web app in a real browser (needs a Playwright Chromium)",
+]
+filterwarnings = ["error::DeprecationWarning:edaforge.*"]

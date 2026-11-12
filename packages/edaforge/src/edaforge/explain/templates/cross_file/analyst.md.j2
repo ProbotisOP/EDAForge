@@ -1,0 +1,20 @@
+# {{ facts.column|code }}: {{ facts.a|code }} vs {{ facts.b|code }}{% if facts.numeric %} (KS D = {{ facts.ks_d|num }}){% else %} (Cramér's V = {{ facts.cramers_v|num }}){% endif %}
+
+{% if facts.numeric %}
+| Source | Rows | Median | Middle half | Mean |
+| --- | --- | --- | --- | --- |
+| {{ facts.a|code }} | {{ facts.n_a|num }} | {{ facts.median_a|num }} | {{ facts.q1_a|num }} to {{ facts.q3_a|num }} | {{ facts.mean_a|num }} |
+| {{ facts.b|code }} | {{ facts.n_b|num }} | {{ facts.median_b|num }} | {{ facts.q1_b|num }} to {{ facts.q3_b|num }} | {{ facts.mean_b|num }} |
+
+- Ratio of medians ({{ facts.b|code }} / {{ facts.a|code }}): {{ facts.get("ratio")|num }}{% if facts.get("unit_hint") %} — within 15% of {{ facts.get("unit_hint") }}, flagged as a possible unit difference{% endif %}.
+- Standardized difference: Cohen's d = {{ facts.cohen_d|num }} ({{ facts.cohen_d_low|num }} to {{ facts.cohen_d_high|num }}); largest gap between the two distribution curves: KS D = {{ facts.ks_d|num }}.
+{% else %}
+| Label | Share in {{ facts.a|code }} | Share in {{ facts.b|code }} |
+| --- | --- | --- |
+{% for s in facts.shares %}
+| {{ s.level|code }} | {{ s.share_a|pct(1) }} | {{ s.share_b|pct(1) }} |
+{% endfor %}
+{% endif %}
+{% if facts.stability is defined %}- Robustness: held in {{ facts.stability|pct }} of half-samples; {{ ev.specs_consistent }} of {{ ev.specs_total }} tests agree.{% endif %}
+
+{% if f.caveats %}**Caveats:** {{ f.caveats|join(" ") }}{% endif %}

@@ -1,0 +1,7 @@
+# Method: {{ facts.y|code }} across {{ facts.group|code }}
+
+**Test.** Kruskal–Wallis H on ranks (tie-corrected, χ² reference with k − 1 = {{ facts.k - 1 }} df); robust to outliers and skew. It tests whether values tend to be larger in some groups (stochastic dominance), not specifically whether means differ. Groups below the disclosure minimum are excluded and listed.
+
+**Effect sizes.** {% if facts.cliffs_delta is defined %}Cliff's delta (P(higher) − P(lower), the effect matching the rank test) with a percentile bootstrap interval, and Cohen's d (difference of means) with a BCa interval, groups resampled independently{% else %}ε² = H / (n − 1) with a percentile bootstrap interval{% endif %}; per-group means with t intervals; the largest gap with a Welch interval.
+
+{% include "_partials/scientist_common.md.j2" %}

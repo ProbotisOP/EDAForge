@@ -1,0 +1,23 @@
+# {{ facts.a|code }} × {{ facts.b|code }}: Cramér's V = {{ facts.cramers_v|num }} [{{ facts.cramers_v_low|num }}, {{ facts.cramers_v_high|num }}]
+
+{% if facts.rates %}
+| Level | Rows | Share {{ facts.positive|code }} | 95% interval |
+| --- | --- | --- | --- |
+{% for r in facts.rates %}
+| {{ r.level|code }} | {{ r.n|num }} | {{ r.rate|pct(1) }} | {{ r.low|pct(1) }} to {{ r.high|pct(1) }} |
+{% endfor %}
+{% endif %}
+{% if facts.cells %}
+**Most over-represented combinations** (observed vs expected if unrelated):
+
+| {{ facts.a|code }} | {{ facts.b|code }} | Observed | Expected | Ratio |
+| --- | --- | --- | --- | --- |
+{% for c in facts.cells %}
+| {{ c.a|code }} | {{ c.b|code }} | {{ c.observed|num }} | {{ c.expected|num }} | {{ c.ratio|num }}× |
+{% endfor %}
+{% endif %}
+
+- Table: {{ facts.levels_a }} × {{ facts.levels_b }} levels, {{ facts.n|num }} rows{% if facts.n_missing %} ({{ facts.n_missing|num }} rows with a missing label left out){% endif %}; χ² = {{ facts.chi2|num }} on {{ facts.dof }} df.
+{% if facts.stability is defined %}- Robustness: held in {{ facts.stability|pct }} of half-samples; {{ ev.specs_consistent }} of {{ ev.specs_total }} tests agree.{% endif %}
+
+{% if f.caveats %}**Caveats:** {{ f.caveats|join(" ") }}{% endif %}

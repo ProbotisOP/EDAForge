@@ -1,0 +1,48 @@
+[project]
+name = "edaforge"
+version = "0.1.0.dev0"
+description = "EDAForge: local-first, statistically rigorous, multi-file pattern discovery with a measured false-alarm rate."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.14"
+authors = [{ name = "EDAForge contributors" }]
+keywords = ["statistics", "causal-inference", "pattern-discovery", "false-discovery-rate", "eda"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Typing :: Typed",
+]
+# Core dependencies must pass the license gate (section 13.3): MIT, BSD, Apache-2.0, ISC, PSF.
+dependencies = [
+    "numpy>=2.2",
+    "scipy>=1.15",
+    "pydantic>=2.10",
+    "jinja2>=3.1.4",
+    "markupsafe>=2.1",
+    "pyyaml>=6.0.2",
+    "polars>=1.30",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "python-multipart>=0.0.18",
+    "openpyxl>=3.1.5",
+    "scikit-learn>=1.6",
+    "duckdb>=1.1",            # MIT: .duckdb files (read-only, no external access)
+    "access-parser==0.0.6",   # Apache-2.0: Microsoft Access .mdb/.accdb, pure Python
+    "dbfread>=2.0.7",         # MIT: dBase/FoxPro .dbf
+]
+
+[project.scripts]
+edaforge = "edaforge.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/edaforge"]

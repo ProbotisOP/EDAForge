@@ -1,0 +1,13 @@
+EDAForge
+Copyright 2026 The EDAForge contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This repository does not vendor third-party source code, model weights or datasets. Runtime
+dependencies are installed from their own distributions under their own licenses; the license
+gate (tools/src/edaforge_devtools/license_gate, policy in license-policy.toml) checks every one of
+them in CI. Benchmark datasets are downloaded on demand under their own terms.
+
+Test fixture: packages/edaforge/tests/fixtures/access_parser_test.mdb is examples/test.mdb from
+https://github.com/claroty/access_parser (Copyright Claroty, Apache License 2.0), used unmodified
+to test reading Microsoft Access files.

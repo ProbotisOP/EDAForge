@@ -1,0 +1,7 @@
+# Method: dependence of {{ facts.y|code }} and {{ facts.x|code }}
+
+**Screening.** Statistic T = max(R²(y | s(x)), R²(x | s(y))) for restricted cubic splines s(·) with Harrell's quantile knots{% if facts.knots %} (knots for {{ facts.x|code }}: {% for k in facts.knots %}{{ k|num }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}. The null distribution permutes one column against the other (valid under exchangeability); the p-value uses Besag–Clifford sequential stopping. All numeric pairs screened by this analyzer form one Benjamini–Hochberg family.
+
+**Effect sizes.** Spearman ρ with the Bonett–Wright (2000) interval; Pearson r with the Fisher-z interval; curve from least squares on the spline basis. Non-linearity: nested F-test, spline vs straight line{% if facts.df_nonlinear %} (df = {{ facts.df_nonlinear[0] }}, {{ facts.df_nonlinear[1] }}){% endif %}, recorded in the ledger as its own hypothesis.
+
+{% include "_partials/scientist_common.md.j2" %}

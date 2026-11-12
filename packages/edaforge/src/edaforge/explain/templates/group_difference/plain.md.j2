@@ -1,0 +1,5 @@
+# {% if facts.target_is_group %}{{ facts.y|code }} is higher when {{ facts.group|code }} = {{ facts.top_level|code }}{% else %}{{ facts.y|code }} differs between {{ facts.group|code }} groups: highest for {{ facts.top_level|code }}{% endif %}
+
+- **What was found:** the average {{ facts.y|code }} is {{ facts.top_mean|num }} for {{ facts.top_level|code }} and {{ facts.bottom_mean|num }} for {{ facts.bottom_level|code }}, a gap of {{ facts.gap|num }} (95% interval {{ facts.gap_low|num }} to {{ facts.gap_high|num }}). {% if facts.k > 2 %}{{ facts.k }} groups were compared; the Analyst view lists all of them.{% endif %}
+- **Why it matters:** {% if facts.prob_superiority is defined %}a random {{ facts.top_level|code }} record has a higher {{ facts.y|code }} than a random {{ facts.bottom_level|code }} record {{ facts.prob_superiority|natfreq }} times.{% else %}the groups differ more than chance would usually produce in {{ facts.n|num }} rows.{% endif %}
+{% include "_partials/plain_footer.md.j2" %}

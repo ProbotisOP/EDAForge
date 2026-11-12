@@ -1,0 +1,7 @@
+# Method: conditioning on {{ facts.z|code }}
+
+**Partial association.** Ranks of {{ facts.x|code }} and {{ facts.y|code }} are residualized on {% if facts.z_categorical %}indicator columns for the {{ facts.z|code }} groups{% else %}the ranks of {{ facts.z|code }}{% endif %} ({{ facts.controls }} control column{{ "s" if facts.controls != 1 else "" }}); the partial ρ is the correlation of the residuals, with a Bonett–Wright interval on n − 3 − k.
+
+**Test.** {% if facts.mode == "explained_away" %}Intersection–union test (Berger, 1982): the marginal Spearman test must reject and a two-one-sided-tests (TOST) equivalence test must show |partial ρ| < {{ facts.delta|num }}; p = max of the two.{% else %}Intersection–union test: a one-sided marginal test in the observed direction and a one-sided partial test in the opposite direction; p = max of the two.{% endif %} Pairs were pre-selected on the search data (|ρ| ≥ 0.1); the check on held-out data re-tests the same triple.
+
+{% include "_partials/scientist_common.md.j2" %}

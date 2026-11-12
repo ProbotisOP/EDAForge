@@ -1,0 +1,16 @@
+# Segment {{ facts.text|code }}: difference {% if facts.binary %}{{ (facts.diff * 100)|signed }} points [{{ (facts.diff_low * 100)|num }}, {{ (facts.diff_high * 100)|num }}]{% else %}{{ facts.diff|signed }} [{{ facts.diff_low|num }}, {{ facts.diff_high|num }}]{% endif %}
+
+| Group | Rows | {% if facts.binary %}Share {{ facts.positive|code }}{% else %}Average {{ facts.target|code }}{% endif %} |
+| --- | --- | --- |
+| In the segment | {{ facts.n_in|num }} | {% if facts.binary %}{{ facts.value_in|pct(1) }}{% else %}{{ facts.value_in|num }}{% endif %} |
+| Everyone else | {{ facts.n_out|num }} | {% if facts.binary %}{{ facts.value_out|pct(1) }}{% else %}{{ facts.value_out|num }}{% endif %} |
+| All rows | {{ facts.n|num }} | {% if facts.binary %}{{ facts.overall|pct(1) }}{% else %}{{ facts.overall|num }}{% endif %} |
+{% if facts.parents is defined %}{% for p in facts.parents %}
+| Only {{ p.text|code }} | {{ p.n_in|num }} | {% if facts.binary %}{{ p.value_in|pct(1) }}{% else %}{{ p.value_in|num }}{% endif %} |
+{% endfor %}{% endif %}
+
+- Difference (segment − rest): {% if facts.binary %}{{ (facts.diff * 100)|signed }} percentage points, 95% interval {{ (facts.diff_low * 100)|num }} to {{ (facts.diff_high * 100)|num }}{% else %}{{ facts.diff|signed }}, 95% interval {{ facts.diff_low|num }} to {{ facts.diff_high|num }}{% endif %}{% if facts.ratio %}; ratio {{ facts.ratio|num }}×{% endif %}.
+- Coverage: {{ facts.share_in|pct(1) }} of rows. Segments smaller than 30 rows are never tested or shown.
+{% if facts.stability is defined %}- Robustness: held in {{ facts.stability|pct }} of half-samples; {{ ev.specs_consistent }} of {{ ev.specs_total }} tests agree.{% endif %}
+
+{% if f.caveats %}**Caveats:** {{ f.caveats|join(" ") }}{% endif %}

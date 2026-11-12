@@ -1,0 +1,27 @@
+{#- Generic Scientist lens. -#}
+# Method, evidence and provenance for {{ f.id }}
+
+## Evidence
+
+- Test: {{ ev.test }}; n = {{ ev.n }}; statistic {{ ev.statistic|num }}; p = {{ ev.p_value|p }}; q = {{ ev.q_value|p }}.
+- Confirmation: {{ conf.status }} via {{ conf.method }}; p = {{ conf.p_value|p }}; q = {{ conf.q_value|p }}.
+- Grade {{ grade }} ({{ grade_label }}).{% for r in ev.grade_reasons %}
+
+  - {{ r }}{% endfor %}
+
+- Causal rung {{ rung }}: {{ rung_meaning }}.
+
+## Assumptions
+
+| Assumption | Severity | Result | Detail |
+| --- | --- | --- | --- |
+{% for a in ev.assumptions %}
+| {{ a.name }} | {{ a.severity }} | {{ a.status }} | {{ a.detail }} |
+{% endfor %}
+
+## Provenance
+
+- Analyzer: {{ prov.analyzer|code }} version {{ prov.analyzer_version }}; edaforge {{ prov.edaforge_version }}.
+- Run {{ prov.run_id|code }}, manifest {{ prov.manifest_hash[:16]|code }}, data {{ prov.data_hash[:16]|code }}, seed {{ prov.seed }}.
+- Ledger entries: {{ prov.hypothesis_ids|join(", ") }}.
+- Reproduce: {{ prov.code|code }}

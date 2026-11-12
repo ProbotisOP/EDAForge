@@ -1,0 +1,12 @@
+{#- Generic Plain lens: uses only fields every finding has. -#}
+# {{ f.title_plain }}
+
+- **How sure are we?** {{ grade_label|capitalize }} evidence (grade {{ grade }}): {{ grade_wording }}.
+{%- if conf.status == "confirmed" %} It held up on data the search never saw.
+{%- elif conf.method == "none" %} There was too little data to set some aside for a second check, so treat this as a lead.
+{%- else %} It did not hold up clearly on data the search never saw.
+{%- endif %} The engine's own false-alarm rate on shuffled copies of your data has not been measured yet.
+- **What this does NOT mean:** {% if rung in ["R0", "R1"] %}it shows that these things go together in the data. It does not show that one is the reason for the other.{% else %}it rests on the assumptions listed in the Scientist view; if they fail, so does the conclusion.{% endif %}
+
+- **What could make this wrong:** {% if f.caveats %}{{ f.caveats|join("; ") }}{% else %}hidden factors, errors in the data, or chance{% endif %}.
+- **What you could do next:** {% if f.actions %}{{ f.actions|join("; ") }}{% else %}open the Analyst view to see the numbers behind this{% endif %}.

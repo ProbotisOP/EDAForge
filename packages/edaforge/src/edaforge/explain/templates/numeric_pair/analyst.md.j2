@@ -1,0 +1,19 @@
+# {{ facts.y|code }} vs {{ facts.x|code }}: Spearman ρ = {{ facts.rho|num }} [{{ facts.rho_low|num }}, {{ facts.rho_high|num }}]
+
+| Measure | Estimate | 95% interval |
+| --- | --- | --- |
+| Spearman rank correlation ρ | {{ facts.rho|num }} | {{ facts.rho_low|num }} to {{ facts.rho_high|num }} |
+| Pearson correlation r | {{ facts.r|num }} | {{ facts.r_low|num }} to {{ facts.r_high|num }} |
+| Variation explained by a straight line (R²) | {{ facts.r2_linear|pct(1) }} | |
+| Variation explained by a smooth curve (R²) | {{ facts.r2_spline|pct(1) }} | |
+| Shape of the fitted curve | {{ facts.shape }} | |
+
+{% if facts.p_nonlinear is not none %}The curve fits better than a straight line by {{ facts.r2_gain|pct(1) }} of the variance (nested F = {{ facts.f_nonlinear|num }}, p = {{ facts.p_nonlinear|p }}); it is called {{ "non-linear" if facts.nonlinear else "roughly linear" }} (rule: p < 0.01 and a gain of at least 1 point and 10% of the curve's R²).{% else %}Whether the relationship is curved was tested only on confirmation data, which this run did not have.{% endif %}
+
+**Typical values along the curve:** {{ facts.y|code }} ≈ {{ facts.y_at_low|num }} at {{ facts.x|code }} = {{ facts.x_low|num }} (5th percentile) and ≈ {{ facts.y_at_high|num }} at {{ facts.x|code }} = {{ facts.x_high|num }} (95th percentile).
+
+**Records:** {{ facts.n|num }} rows with both values{% if facts.n_missing %}; {{ facts.n_missing|num }} rows missing one of them were left out{% endif %}. Effect sizes are computed on {{ effect.split }} data.
+
+{% if facts.stability is defined %}**Robustness:** the pattern held in {{ facts.stability|pct }} of random half-samples{% if ev.specs_total %}; {{ ev.specs_consistent }} of {{ ev.specs_total }} alternative analyses agree{% endif %}.{% endif %}
+
+{% if f.caveats %}**Caveats:** {{ f.caveats|join(" ") }}{% endif %}

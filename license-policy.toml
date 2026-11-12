@@ -1,0 +1,48 @@
+# License policy for the core (docs/PROJECT_PROMPT.md section 13.3).
+# Decided in docs/adr/0006-license-gate.md. Changes need a pull request with an ADR update.
+
+[policy]
+# Permissive licenses named by section 13.3 (MIT, BSD, Apache-2.0, ISC, PSF), plus standard
+# permissive licenses that are at least as permissive as MIT (ADR 0006 lists the reasoning;
+# a maintainer may veto any of them).
+allowed = [
+    "MIT",
+    "MIT-0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "0BSD",
+    "Apache-2.0",
+    "ISC",
+    "PSF-2.0",
+    "Python-2.0",
+    "Zlib",
+    "Unlicense",
+    "CC0-1.0",
+    "BSL-1.0",  # Boost Software License (not the Business Source License, which is BUSL)
+    # Attribution only. Used by caniuse-lite, the browser-support data that browserslist reads
+    # while building the web app (a development dependency; not shipped). apps/web's own license
+    # check already allows it. See ADR 0011.
+    "CC-BY-4.0",
+]
+# Weak copyleft allowed only as unmodified dependencies (section 13.3).
+allowed_unmodified = ["MPL-2.0", "EPL-2.0"]
+# Never allowed in the core: GPL, AGPL, LGPL, BUSL, SSPL, non-commercial and similar.
+denied_prefixes = [
+    "GPL-",
+    "AGPL-",
+    "LGPL-",
+    "BUSL-",
+    "SSPL-",
+    "CC-BY-NC",
+    "Elastic-",
+    "LicenseRef-NonCommercial",
+    "LicenseRef-Commons-Clause",
+    "LicenseRef-Proprietary",
+]
+denied_text = ["non-commercial", "noncommercial", "business source"]
+
+# Reviewed overrides for packages whose metadata is missing or ambiguous. Each needs a reason.
+# [[exception]]
+# package = "example"
+# license = "MIT"
+# reason = "metadata missing; upstream LICENSE file reviewed on YYYY-MM-DD"

@@ -1,0 +1,5 @@
+# Method: 2×2 interaction for {{ facts.target|code }}
+
+**Model.** Least squares of {{ facts.target|code }} on indicators A, B and A·B ({% if facts.binary %}a linear probability model{% else %}cell means{% endif %}); the A·B coefficient is the difference in differences. Inference uses HC3 heteroscedasticity-robust standard errors (MacKinnon & White, 1985) with a normal reference. The pair of conditions came from the subgroup search; every evaluated pair was ledgered.
+
+{% include "_partials/scientist_common.md.j2" %}

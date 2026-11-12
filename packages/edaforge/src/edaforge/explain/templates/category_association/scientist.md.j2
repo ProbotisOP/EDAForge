@@ -1,0 +1,7 @@
+# Method: association of {{ facts.a|code }} and {{ facts.b|code }}
+
+**Test.** Pearson's χ² test of independence on the {{ facts.levels_a }} × {{ facts.levels_b }} table; when more than 20% of expected counts are below 5 the p-value is a Monte Carlo permutation p-value instead. Rare labels were combined into "(other)" before testing.
+
+**Effect size.** Cramér's V = √(χ² / (n (min(r, c) − 1))) with a percentile bootstrap interval (rows resampled).
+
+{% include "_partials/scientist_common.md.j2" %}

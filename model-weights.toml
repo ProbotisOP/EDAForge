@@ -1,0 +1,12 @@
+# Model-weight manifest (docs/PROJECT_PROMPT.md section 13.3): every checkpoint the project may
+# download, with its license and scope. The license gate checks this file in CI.
+#
+# Phase 0 ships no model weights. Entries look like:
+#
+# [[model]]
+# name = "example-checkpoint"
+# version = "1.0"
+# license = "Apache-2.0"
+# scope = "core"                         # or "plugin:<distribution>"
+# source = "where it is downloaded from"
+model = []

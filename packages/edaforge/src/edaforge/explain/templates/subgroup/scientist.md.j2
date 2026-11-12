@@ -1,0 +1,7 @@
+# Method: subgroup search for {{ facts.target|code }}
+
+**Search.** Single conditions (each category level; numeric quartile and median thresholds computed on the search data and frozen) and pairs of conditions on different columns built from the 12 strongest singles. Every evaluated subgroup was registered as a hypothesis; Benjamini–Hochberg runs over all of them, not only the reported ones. Minimum segment size: 30 rows on each side.
+
+**Test.** {% if facts.binary %}Two-proportion z-test (Fisher's exact test when expected counts are small); Newcombe hybrid-score interval for the difference in shares{% else %}Welch's t-test; Welch interval for the difference in means{% endif %}. Threshold values: {% for c in facts.conditions %}{{ c.text|code }}{% if not loop.last %}; {% endif %}{% endfor %}.
+
+{% include "_partials/scientist_common.md.j2" %}

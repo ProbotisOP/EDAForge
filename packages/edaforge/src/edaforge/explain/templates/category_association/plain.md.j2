@@ -1,0 +1,5 @@
+# {% if facts.cells %}{{ facts.a|code }} = {{ facts.cells[0].a|code }} comes with {{ facts.b|code }} = {{ facts.cells[0].b|code }} more often than chance{% else %}{{ facts.a|code }} and {{ facts.b|code }} are associated{% endif %}
+
+- **What was found:** {% if facts.rates %}the share of {{ (facts.b if facts.positive and facts.rates else facts.a)|code }} = {{ facts.positive|code }} ranges from {{ facts.rates[-1].rate|pct }} ({{ facts.rates[-1].level|code }}) to {{ facts.rates[0].rate|pct }} ({{ facts.rates[0].level|code }}).{% elif facts.cells %}{% for c in facts.cells[:2] %}{{ c.a|code }} rows are {{ c.b|code }} {{ c.row_share|pct }} of the time, against {{ c.col_share_overall|pct }} over all rows{% if not loop.last %}; {% endif %}{% endfor %}.{% else %}the mix of {{ facts.b|code }} labels differs between {{ facts.a|code }} groups.{% endif %}
+- **Why it matters:** these combinations happen more often than chance would usually produce in {{ facts.n|num }} rows (association strength {{ facts.cramers_v|num }} on a 0–1 scale).
+{% include "_partials/plain_footer.md.j2" %}

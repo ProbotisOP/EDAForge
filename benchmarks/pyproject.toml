@@ -1,0 +1,14 @@
+[project]
+name = "edaforge-benchmarks"
+version = "0.1.0.dev0"
+description = "The Proving Grounds: synthetic generators with planted truth, metrics and statistical CI gates. Not published."
+license = "Apache-2.0"
+requires-python = ">=3.12,<3.14"
+dependencies = ["edaforge", "numpy>=2.2", "polars>=1.30"]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/edaforge_bench"]

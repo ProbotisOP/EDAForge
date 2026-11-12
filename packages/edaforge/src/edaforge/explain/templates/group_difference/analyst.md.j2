@@ -1,0 +1,15 @@
+# {{ facts.y|code }} by {{ facts.group|code }}: {% if facts.cliffs_delta is defined %}Cliff's delta = {{ facts.cliffs_delta|num }} [{{ facts.cliffs_low|num }}, {{ facts.cliffs_high|num }}]{% elif facts.cohen_d is defined %}Cohen's d = {{ facts.cohen_d|num }} [{{ facts.cohen_d_low|num }}, {{ facts.cohen_d_high|num }}]{% else %}ε² = {{ facts.epsilon2|num }} [{{ facts.epsilon2_low|num }}, {{ facts.epsilon2_high|num }}]{% endif %}
+
+| {{ facts.group|code }} | Rows | Mean | 95% interval | Median | Middle half |
+| --- | --- | --- | --- | --- | --- |
+{% for g in facts.groups %}
+| {{ g.level|code }} | {{ g.n|num }} | {{ g.mean|num }} | {{ g.mean_low|num }} to {{ g.mean_high|num }} | {{ g.median|num }} | {{ g.q1|num }} to {{ g.q3|num }} |
+{% endfor %}
+
+- Largest gap in means ({{ facts.top_level|code }} − {{ facts.bottom_level|code }}): {{ facts.gap|num }} (Welch 95% interval {{ facts.gap_low|num }} to {{ facts.gap_high|num }}). Picking the largest of several gaps makes it look larger than a single pre-chosen comparison would.
+{% if facts.cliffs_delta is defined %}- Rank effect (matches the test): Cliff's delta = {{ facts.cliffs_delta|num }} ({{ facts.cliffs_low|num }} to {{ facts.cliffs_high|num }}); below ±0.147 counts as negligible.
+{% endif %}{% if facts.cohen_d is defined %}- Standardized difference of means: Cohen's d = {{ facts.cohen_d|num }} ({{ facts.cohen_d_low|num }} to {{ facts.cohen_d_high|num }}); chance that a {{ facts.top_level|code }} record exceeds a {{ facts.bottom_level|code }} record: {{ facts.prob_superiority|pct }}.{% else %}- Share of rank variation explained by the groups: ε² = {{ facts.epsilon2|num }} ({{ facts.epsilon2_low|num }} to {{ facts.epsilon2_high|num }}).{% endif %}
+- Rows compared: {{ facts.n|num }}{% if facts.n_missing %}; {{ facts.n_missing|num }} rows with a missing value were left out{% endif %}{% if facts.excluded_groups %}; groups with fewer than 10 rows were not compared ({% for e in facts.excluded_groups %}{{ e.level|code }}: {{ e.n }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}.
+{% if facts.stability is defined %}- Robustness: held in {{ facts.stability|pct }} of half-samples; {{ ev.specs_consistent }} of {{ ev.specs_total }} alternative tests agree.{% endif %}
+
+{% if f.caveats %}**Caveats:** {{ f.caveats|join(" ") }}{% endif %}

@@ -1,0 +1,13 @@
+# Interaction of {{ facts.conditions[0].text|code }} and {{ facts.conditions[1].text|code }}: {% if facts.binary %}{{ (facts.did * 100)|signed }} points [{{ (facts.did_low * 100)|num }}, {{ (facts.did_high * 100)|num }}]{% else %}{{ facts.did|signed }} [{{ facts.did_low|num }}, {{ facts.did_high|num }}]{% endif %}
+
+| {{ facts.conditions[0].text|code }} | {{ facts.conditions[1].text|code }} | Rows | {% if facts.binary %}Share {{ facts.positive|code }}{% else %}Average {{ facts.target|code }}{% endif %} |
+| --- | --- | --- | --- |
+| yes | yes | {{ facts.cells.both.n|num }} | {% if facts.binary %}{{ facts.cells.both.value|pct(1) }}{% else %}{{ facts.cells.both.value|num }}{% endif %} |
+| yes | no | {{ facts.cells.first_only.n|num }} | {% if facts.binary %}{{ facts.cells.first_only.value|pct(1) }}{% else %}{{ facts.cells.first_only.value|num }}{% endif %} |
+| no | yes | {{ facts.cells.second_only.n|num }} | {% if facts.binary %}{{ facts.cells.second_only.value|pct(1) }}{% else %}{{ facts.cells.second_only.value|num }}{% endif %} |
+| no | no | {{ facts.cells.neither.n|num }} | {% if facts.binary %}{{ facts.cells.neither.value|pct(1) }}{% else %}{{ facts.cells.neither.value|num }}{% endif %} |
+
+- Difference in differences (both − first only − second only + neither): {% if facts.binary %}{{ (facts.did * 100)|signed }} percentage points, 95% interval {{ (facts.did_low * 100)|num }} to {{ (facts.did_high * 100)|num }}{% else %}{{ facts.did|signed }}, 95% interval {{ facts.did_low|num }} to {{ facts.did_high|num }}{% endif %}.
+{% if facts.stability is defined %}- Robustness: held in {{ facts.stability|pct }} of half-samples; {{ ev.specs_consistent }} of {{ ev.specs_total }} tests agree.{% endif %}
+
+{% if f.caveats %}**Caveats:** {{ f.caveats|join(" ") }}{% endif %}

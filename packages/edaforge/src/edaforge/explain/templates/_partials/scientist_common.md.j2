@@ -1,0 +1,47 @@
+## Evidence
+
+| Quantity | Value |
+| --- | --- |
+| Discovery test | `{{ ev.test }}` |
+| Discovery statistic | {{ ev.statistic|num }} |
+| Discovery p-value (search data) | {{ ev.p_value|p }} |
+| Discovery q-value (BH over the analyzer's tests) | {{ ev.q_value|p }} |
+| Confirmation method | {{ conf.method }}{% if conf.aggregation %} — {{ conf.aggregation }}{% endif %} |
+| Confirmation p-value | {{ conf.p_value|p }} |
+| Confirmation q-value (BH over all confirmation tests) | {{ conf.q_value|p }} |
+| Confirmation status | {{ conf.status }} |
+| Rows used | {{ ev.n|num }} |
+| Stability (share of half-samples that agree) | {% if ev.stability is not none %}{{ ev.stability|pct }}{% else %}not measured{% endif %} |
+| Specifications that agree | {% if ev.specs_total %}{{ ev.specs_consistent }} of {{ ev.specs_total }}{% else %}not run{% endif %} |
+| Evidence grade / causal rung | {{ grade }} / {{ rung }} ({{ rung_meaning }}) |
+
+{% if facts.specs is defined and facts.specs %}
+**Alternative specifications:** {% for s in facts.specs %}{{ s.name }} ({{ "agrees" if s.agrees else "does not agree" }}){% if not loop.last %}; {% endif %}{% endfor %}.
+{% endif %}
+
+## Assumptions
+
+| Assumption | Status | Detail |
+| --- | --- | --- |
+{% for a in ev.assumptions %}
+| {{ a.name }} | {{ a.status }} | {{ a.description }} {{ a.detail }} |
+{% else %}
+| (none declared) | | |
+{% endfor %}
+
+## Why this grade
+
+{% for r in ev.grade_reasons %}
+- {{ r }}
+{% else %}
+- Every criterion for the grade was met.
+{% endfor %}
+{% for r in ev.rung_reasons %}
+- Causal rung: {{ r }}
+{% endfor %}
+
+## Reproducibility
+
+- Analyzer `{{ prov.analyzer }}` version {{ prov.analyzer_version }}, EDAForge {{ prov.edaforge_version }}
+- Run `{{ prov.run_id }}`, seed {{ prov.seed }}, data fingerprint `{{ prov.data_hash[:16] }}`
+- Ledger hypotheses: {% for h in prov.hypothesis_ids %}`{{ h }}`{% if not loop.last %}, {% endif %}{% endfor %}

@@ -1,0 +1,44 @@
+{#- Scientist lens for a two-group distribution shift found by a permutation test. -#}
+# Method, evidence and provenance for {{ f.id }}
+
+## Method
+
+- Statistic: Welch's two-sample t, $t = (\bar{x}_B - \bar{x}_A) / \sqrt{s_A^2/n_A + s_B^2/n_B}$, with the absolute value for a two-sided test.
+- Null: exchangeability of the group labels {{ facts.group_a|code }} and {{ facts.group_b|code }} in column {{ facts.env_column|code }}. Labels are permuted; the studentized statistic keeps the test asymptotically valid under unequal variances (Chung & Romano, 2013).
+- p-values: sequential Monte Carlo stopping (Besag & Clifford, 1991) with h = {{ facts.permutation_h }} and at most {{ facts.permutation_max - 1 }} permutations.
+- Intervals: {{ effect.ci_method }} bootstrap (Efron, 1987), resampling within each group, {{ facts.bootstrap_resamples }} resamples.
+- Multiplicity: Benjamini-Hochberg within the analyzer's exploration family and across all confirmation tests of the run (Benjamini & Hochberg, 1995).
+
+## Evidence
+
+| Stage | n | Statistic | p | q |
+| --- | --- | --- | --- | --- |
+| Discovery (exploration split) | {{ facts.explore_n }} | {{ ev.statistic|num }} | {{ ev.p_value|p }} | {{ ev.q_value|p }} |
+| Confirmation ({{ conf.method }}) | {{ conf.n if conf.n is not none else "n/a" }} | {{ facts.confirm_statistic|num }} | {{ conf.p_value|p }} | {{ conf.q_value|p }} |
+
+- Confirmation status: {{ conf.status }}{% if conf.blind_violation %} (blind-analysis violation recorded){% endif %}.
+- Stability: {{ ev.stability|num if ev.stability is not none else "not measured" }}. Specification curve: {{ "%d of %d agree"|format(ev.specs_consistent, ev.specs_total) if ev.specs_total else "not run" }}. Refutations: {{ ev.refutations|length }} run.
+- Grade {{ grade }} ({{ grade_label }}).{% for r in ev.grade_reasons %}
+
+  - {{ r }}{% endfor %}
+
+- Causal rung {{ rung }}: {{ rung_meaning }}.{% for r in ev.rung_reasons %} {{ r }}.{% endfor %}
+
+## Assumptions
+
+| Assumption | Severity | Result | Detail |
+| --- | --- | --- | --- |
+{% for a in ev.assumptions %}
+| {{ a.name }} | {{ a.severity }} | {{ a.status }} | {{ a.detail }} |
+{% endfor %}
+
+## Provenance
+
+- Analyzer: {{ prov.analyzer|code }} version {{ prov.analyzer_version }}; edaforge {{ prov.edaforge_version }}.
+- Run {{ prov.run_id|code }}, manifest {{ prov.manifest_hash[:16]|code }}, data {{ prov.data_hash[:16]|code }}, seed {{ prov.seed }}.
+- Ledger entries: {{ prov.hypothesis_ids|join(", ") }}.
+- Reproduce: {{ prov.code|code }}
+
+## References
+
+Besag & Clifford (1991); Chung & Romano (2013); Efron (1987); Benjamini & Hochberg (1995). Entries in docs/references.bib.

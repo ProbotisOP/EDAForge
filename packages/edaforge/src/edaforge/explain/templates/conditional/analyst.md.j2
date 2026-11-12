@@ -1,0 +1,16 @@
+# {{ facts.x|code }} ~ {{ facts.y|code }} given {{ facts.z|code }}: ρ {{ facts.rho_marginal|num }} → {{ facts.rho_partial|num }}
+
+| Analysis | Spearman ρ | 95% interval |
+| --- | --- | --- |
+| All rows | {{ facts.rho_marginal|num }} | {{ facts.rho_marginal_low|num }} to {{ facts.rho_marginal_high|num }} |
+| After accounting for {{ facts.z|code }} (partial) | {{ facts.rho_partial|num }} | {{ facts.rho_partial_low|num }} to {{ facts.rho_partial_high|num }} |
+{% for w in facts.within %}
+| Only {{ facts.z|code }} = {{ w.level|code }} ({{ w.n|num }} rows) | {{ w.rho|num }} | {{ w.low|num }} to {{ w.high|num }} |
+{% endfor %}
+
+- Share of the association accounted for by {{ facts.z|code }}: {{ facts.attenuation|pct }}.
+- {% if facts.mode == "explained_away" %}"Negligible" means the partial correlation is shown to be within ±{{ facts.delta|num }} (equivalence test), not merely non-significant.{% else %}The partial association has the opposite sign to the overall association.{% endif %}
+- Rows: {{ facts.n|num }} with all three values{% if facts.n_missing %} ({{ facts.n_missing|num }} left out for a missing value){% endif %}.
+{% if facts.stability is defined %}- Robustness: held in {{ facts.stability|pct }} of half-samples; {{ ev.specs_consistent }} of {{ ev.specs_total }} analyses agree.{% endif %}
+
+{% if f.caveats %}**Caveats:** {{ f.caveats|join(" ") }}{% endif %}

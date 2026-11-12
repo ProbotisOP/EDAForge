@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use EDAForge, please cite it using these metadata."
+type: software
+title: "EDAForge"
+abstract: >-
+  An open-source, local-first platform for automated, statistically rigorous, multi-file
+  pattern discovery with a measured false-alarm rate.
+authors:
+  - name: "The EDAForge contributors"
+license: Apache-2.0
+version: 0.1.0.dev0
+repository-code: "https://github.com/ProbotisOP/EDAForge"
+keywords:
+  - statistics
+  - false discovery rate
+  - causal inference
+  - pattern discovery

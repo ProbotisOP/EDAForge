@@ -1,0 +1,20 @@
+{#- Generic Analyst lens. -#}
+# {{ f.title_plain }}
+
+## Effect size
+
+{% if effect %}
+| Measure | Estimate | {{ "%d%%"|format(effect.ci_level * 100) }} interval | Computed on |
+| --- | --- | --- | --- |
+| {{ effect.measure }} | {{ effect.estimate|num }}{% if effect.units %} {{ effect.units }}{% endif %} | {{ effect.ci_low|num }} to {{ effect.ci_high|num }} | {{ effect.split or "n/a" }} data |
+{% else %}
+No effect size is attached to this finding.
+{% endif %}
+
+## Data-health caveats
+
+{% for c in f.caveats %}
+- {{ c }}
+{% else %}
+- None recorded.
+{% endfor %}

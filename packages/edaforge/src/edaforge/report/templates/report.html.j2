@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="{{ locale }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src '{{ style_hash }}'; img-src https://raw.githubusercontent.com; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>EDAForge report, run {{ manifest.run_id }}</title>
+<style>{{ css }}</style>
+</head>
+<body>
+<header>
+<a class="brand" href="https://github.com/ProbotisOP/EDAForge" target="_blank" rel="noopener noreferrer">
+<img src="https://raw.githubusercontent.com/ProbotisOP/EDAForge/main/apps/web/public/appicon.png" alt="EDAForge logo">
+<h1>EDAForge report</h1>
+</a>
+<p class="meta">Run <code>{{ manifest.run_id }}</code> · edaforge {{ manifest.edaforge_version }} · seed {{ manifest.seed }} · {{ cards|length }} finding{{ "" if cards|length == 1 else "s" }}</p>
+</header>
+<main>
+<section aria-labelledby="honesty-heading">
+<h2 id="honesty-heading">How honest is this report?</h2>
+<p class="notice">The Honesty Meter (false discoveries on shuffled copies of your data) and the injection–recovery test (the smallest effects this data can reveal) were not run for this report. Until they are, read every finding with its grade.</p>
+</section>
+<section aria-labelledby="findings-heading">
+<h2 id="findings-heading">Findings</h2>
+{% for c in cards %}
+<article class="finding" id="{{ c.id }}" aria-labelledby="{{ c.id }}-title">
+<div class="badges">
+<span class="badge fid">{{ c.id }}</span>
+<span class="badge grade-{{ c.grade }}" title="Evidence grade: {{ c.grade_wording }}">Grade {{ c.grade }} · {{ c.grade_label }}</span>
+<span class="badge rung" title="Causal rung">Rung {{ c.rung }}</span>
+<span class="badge pclass">{{ c.pattern }}</span>
+</div>
+<div id="{{ c.id }}-title">{{ c.plain }}</div>
+<details>
+<summary>Analyst lens</summary>
+{{ c.analyst }}
+</details>
+<details>
+<summary>Scientist lens</summary>
+{{ c.scientist }}
+</details>
+</article>
+{% else %}
+<p>No findings met the bar for reporting. The table below lists what was searched.</p>
+{% endfor %}
+</section>
+<section aria-labelledby="searched-heading">
+<h2 id="searched-heading">What was searched</h2>
+<table>
+<thead><tr><th scope="col">Analyzer</th><th scope="col">Hypotheses tested</th><th scope="col">Sent to confirmation</th><th scope="col">Confirmed</th></tr></thead>
+<tbody>
+{% for s in searched %}
+<tr><td><code>{{ s.analyzer }}</code></td><td>{{ s.tested }}</td><td>{{ s.promoted }}</td><td>{{ s.confirmed }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</section>
+{% if warnings %}
+<section aria-labelledby="warnings-heading">
+<h2 id="warnings-heading">Warnings</h2>
+<ul>
+{% for w in warnings %}
+<li>{{ w }}</li>
+{% endfor %}
+</ul>
+</section>
+{% endif %}
+</main>
+<footer>
+<p>Manifest <code>{{ manifest_hash[:16] }}</code> · Python {{ manifest.python_version }} · {{ manifest.platform }}</p>
+<p>Inputs: {% for i in manifest.inputs %}<code>{{ i.name }}</code> ({{ i.n_rows }} rows, sha256 <code>{{ i.sha256[:12] }}</code>){{ "; " if not loop.last }}{% endfor %}</p>
+<p>Every number in this report comes from the engine and can be reproduced from the run manifest.</p>
+<p><a href="https://github.com/ProbotisOP/EDAForge" target="_blank" rel="noopener noreferrer">EDAForge on GitHub</a></p>
+</footer>
+</body>
+</html>

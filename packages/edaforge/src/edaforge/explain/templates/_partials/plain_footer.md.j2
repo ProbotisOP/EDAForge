@@ -1,0 +1,8 @@
+- **How sure is this?** {{ grade_label|capitalize }} evidence (grade {{ grade }}): {{ grade_wording }}.
+{%- if conf.status == "confirmed" %} It held up when it was tested again on data the search never saw{% if conf.n %} ({{ conf.n|num }} rows){% endif %}.
+{%- elif conf.method == "none" %} There was too little data to set some aside for a second check, so treat it as a lead to verify.
+{%- else %} It did not hold up clearly when tested again on data the search never saw, so treat it as a lead.
+{%- endif +%}
+- **What this does not mean:** {% if rung in ["R0", "R1"] %}these things go together in this data. That does not show that one is the reason for the other; something else may lie behind both.{% else %}it rests on the assumptions listed in the Scientist view; if they fail, so does the conclusion.{% endif %}
+- **What could make it wrong:** {% if f.caveats %}{{ f.caveats|join(" ") }}{% else %}errors in how the data was recorded, a hidden factor behind both columns, or chance.{% endif %}
+- **Sensible next step:** {% if f.actions %}{{ f.actions|join("; ") }}{% else %}open the Analyst view for the numbers, then check whether the pattern also appears in newer data before acting on it.{% endif %}

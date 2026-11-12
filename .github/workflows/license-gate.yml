@@ -1,0 +1,42 @@
+name: license-gate
+
+# Section 13.3: CI runs a license gate on Python and npm dependencies, plus model-weight
+# manifests, and fails the build on violations.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  license-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked
+      - name: core runtime closure (edaforge, no extras)
+        run: uv run edaforge-license-gate python --root edaforge
+      - name: every installed distribution (development tools included)
+        run: uv run edaforge-license-gate python --installed
+      - name: model-weight manifest
+        run: uv run edaforge-license-gate weights --manifest model-weights.toml
+      - name: npm lockfiles
+        run: |
+          shopt -s nullglob
+          locks=(apps/*/package-lock.json)
+          if [ ${#locks[@]} -eq 0 ]; then echo "no npm lockfiles yet"; exit 0; fi
+          args=(); for l in "${locks[@]}"; do args+=(--lockfile "$l"); done
+          uv run edaforge-license-gate npm "${args[@]}"
+      - name: canary, the gate must block a planted GPL dependency
+        run: |
+          set +e
+          uv run edaforge-license-gate python --root rootpkg --path tools/tests/fixtures/planted_gpl_site
+          status=$?
+          set -e
+          if [ "$status" -ne 1 ]; then echo "license gate did not block the planted GPL package"; exit 1; fi
