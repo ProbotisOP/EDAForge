@@ -184,9 +184,7 @@ export function UniverseView({ universe, lens, signs, selectedNode, selectedEdge
     camera.position.set(0, radius * 0.35, radius * 2.1);
     const controls = new OrbitControls(camera, labels.domElement);
     controls.enableDamping = true;
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.35;
-    controls.addEventListener("start", () => (controls.autoRotate = false));
+    controls.autoRotate = false;
 
     // Background stars (decoration only; fixed seed so the sky never changes between visits).
     let seed = 7;

@@ -19,6 +19,21 @@ runs/
 # Node (apps/web, later phases)
 node_modules/
 
+# Local agent skills, reference prototypes, and scratch audit outputs
+.agent/
+.agents/
+.github/agents/
+.github/hooks/
+.github/skills/
+skills-lock.json
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/critique/
+.impeccable/mocks/
+.impeccable/review/
+RefUI/
+out/
+
 # Editors and OS
 .idea/
 .vscode/

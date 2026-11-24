@@ -1,4 +1,18 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useId, type KeyboardEvent, type ReactNode } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { motion, useReducedMotion } from "motion/react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Database,
+  FileSpreadsheet,
+  FolderOpen,
+  GitMerge,
+  Info,
+  SlidersHorizontal,
+} from "lucide-react";
+import { playDetent } from "../lib/sound";
 
 export function Spinner({ large = false, label }: { large?: boolean; label?: string }) {
   return (
@@ -21,10 +35,8 @@ export function ErrorBox({ error, onRetry }: { error: unknown; onRetry?: () => v
   const message = error instanceof Error ? error.message : String(error);
   return (
     <div className="notice bad" role="alert">
-      <span>⚠</span>
-      <div className="grow">
-        <strong>Something went wrong.</strong> {message}
-      </div>
+      <AlertCircle size={16} className="notice-icon" aria-hidden />
+      <div className="grow">{message}</div>
       {onRetry ? (
         <button className="btn btn-sm" onClick={onRetry}>
           Try again
@@ -35,21 +47,31 @@ export function ErrorBox({ error, onRetry }: { error: unknown; onRetry?: () => v
 }
 
 export function Notice({ tone, children }: { tone: "info" | "warn" | "bad" | "ok"; children: ReactNode }) {
-  const icon = { info: "ℹ", warn: "⚠", bad: "⛔", ok: "✓" }[tone];
+  const Icon = { info: Info, warn: AlertTriangle, bad: AlertCircle, ok: CheckCircle2 }[tone];
   return (
     <div className={`notice ${tone}`}>
-      <span aria-hidden>{icon}</span>
+      <Icon size={16} className="notice-icon" aria-hidden />
       <div className="grow">{children}</div>
     </div>
   );
 }
 
-export function Empty({ icon, title, children }: { icon?: string; title: string; children?: ReactNode }) {
+export function Empty({
+  icon,
+  title,
+  children,
+}: {
+  icon?: ReactNode;
+  title: string;
+  children?: ReactNode;
+}) {
   return (
     <div className="empty">
-      {icon ? <div className="icon" aria-hidden>{icon}</div> : null}
-      <h3>{title}</h3>
-      <div>{children}</div>
+      <div className="empty-glyph" aria-hidden>
+        {typeof icon === "string" || !icon ? <FolderOpen size={20} /> : icon}
+      </div>
+      <h2>{title}</h2>
+      <div className="empty-sub">{children}</div>
     </div>
   );
 }
@@ -58,8 +80,7 @@ export type Tone = "gray" | "brand" | "ok" | "warn" | "bad" | "info" | "outline"
 
 const HEALTH_LABEL = { green: "Clean", yellow: "Needs a look", red: "Serious issues" } as const;
 
-/** Traffic light from the parse: missing cells, empty columns, duplicate rows (see ParseHealth). */
-export function HealthDot({ health, size = 12 }: { health?: import("../lib/types").ParseHealth | null; size?: number }) {
+export function HealthDot({ health, size = 9 }: { health?: import("../lib/types").ParseHealth | null; size?: number }) {
   const status = health?.status ?? "unknown";
   const title = health ? `${HEALTH_LABEL[health.status]}: ${health.reasons.join("; ")}` : "Not checked yet";
   return <span className={`hdot hdot-${status}`} style={{ width: size, height: size }} title={title} aria-label={title} role="img" />;
@@ -84,31 +105,52 @@ export function Modal({
   onClose: () => void;
   actions: ReactNode;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    ref.current?.querySelector<HTMLElement>("input, button")?.focus();
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
   return (
-    <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title} ref={ref}>
-        <h2>{title}</h2>
-        <div>{children}</div>
-        <div className="actions">{actions}</div>
-      </div>
-    </div>
+    <Dialog.Root open onOpenChange={(next) => !next && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="modal-back" />
+        <Dialog.Content className="modal modal-fixed" aria-describedby={undefined}>
+          <Dialog.Title asChild>
+            <h2>{title}</h2>
+          </Dialog.Title>
+          <div>{children}</div>
+          <div className="actions">{actions}</div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
 export function FileIcon({ format }: { format?: string | null }) {
   const f = (format || "combined").toLowerCase();
-  const short: Record<string, string> = { access: "MDB", sqlite: "SQL", duckdb: "DUCK", dbf: "DBF" };
-  const label = short[f] ?? (f === "combined" ? "⋈" : f === "clean" ? "✦" : f === "parquet" ? "PQ" : f.toUpperCase().slice(0, 4));
-  return <span className={`file-icon ft-${f}`}>{label}</span>;
+  if (f === "combined") {
+    return (
+      <span className="file-icon" aria-hidden>
+        <GitMerge size={14} />
+      </span>
+    );
+  }
+  if (f === "clean") {
+    return (
+      <span className="file-icon" aria-hidden>
+        <SlidersHorizontal size={14} />
+      </span>
+    );
+  }
+  if (["access", "sqlite", "duckdb", "dbf"].includes(f)) {
+    return (
+      <span className="file-icon" aria-hidden>
+        <Database size={14} />
+      </span>
+    );
+  }
+  const short: Record<string, string> = { parquet: "PQ" };
+  const label = short[f] ?? (f ? f.toUpperCase().slice(0, 4) : "");
+  return (
+    <span className="file-icon" aria-hidden>
+      {label || <FileSpreadsheet size={14} />}
+    </span>
+  );
 }
 
 export function Tabs<T extends string>({
@@ -120,19 +162,55 @@ export function Tabs<T extends string>({
   onChange: (v: T) => void;
   items: { id: T; label: ReactNode }[];
 }) {
+  const tabId = useId();
+  const reduce = useReducedMotion();
+
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    const idx = items.findIndex((it) => it.id === value);
+    if (idx < 0) return;
+    const nextIdx = (idx + (e.key === "ArrowRight" ? 1 : -1) + items.length) % items.length;
+    const next = items[nextIdx];
+    if (next) {
+      e.preventDefault();
+      playDetent();
+      onChange(next.id);
+      const buttons = e.currentTarget.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
+      buttons[nextIdx]?.focus();
+    }
+  };
+
   return (
-    <div className="tabs" role="tablist">
-      {items.map((item) => (
-        <button
-          key={item.id}
-          role="tab"
-          aria-selected={value === item.id}
-          className={value === item.id ? "tab active" : "tab"}
-          onClick={() => onChange(item.id)}
-        >
-          {item.label}
-        </button>
-      ))}
+    <div className="tabs" role="tablist" onKeyDown={onKeyDown}>
+      {items.map((item) => {
+        const active = value === item.id;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            className={active ? "tab active" : "tab"}
+            onClick={() => {
+              if (!active) playDetent();
+              onChange(item.id);
+            }}
+          >
+            {active ? (
+              <motion.span
+                layoutId={`tab-pill-${tabId}`}
+                className="tab-active-pill"
+                transition={
+                  reduce
+                    ? { duration: 0 }
+                    : { type: "spring", stiffness: 420, damping: 32, mass: 0.65 }
+                }
+              />
+            ) : null}
+            <span className="tab-label-inner">{item.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

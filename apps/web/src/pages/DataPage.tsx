@@ -1,24 +1,45 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { FileWarning, Sparkles, Trash2 } from "lucide-react";
+import { CleanPanel } from "../components/CleanPanel";
 import { DataTable } from "../components/DataTable";
+import { ExploreStudio } from "../components/ExploreStudio";
+import { ColumnProfiles, QualityPanel } from "../components/Profile";
 import { UploadZone, useUploader } from "../components/UploadZone";
 import { Badge, Empty, ErrorBox, FileIcon, HealthDot, Modal, Notice, Tabs } from "../components/ui";
-import { api } from "../lib/api";
+import { api, uploadFile } from "../lib/api";
+import { buildDemoFiles } from "../lib/demoData";
 import { fmtBytes, fmtInt, fmtPct, plural, ROLE_LABEL } from "../lib/format";
+import { playConfirm, playTick } from "../lib/sound";
 import type { ColumnInfo, Dataset, ParseIssue, Project, Role, Upload } from "../lib/types";
 import { ROLES } from "../lib/types";
 import { useProject } from "./ProjectLayout";
-import { QualityPanel, ColumnProfiles } from "../components/Profile";
-import { CleanPanel } from "../components/CleanPanel";
 
-type Tab = "preview" | "columns" | "quality" | "clean" | "log";
+type Tab = "quality" | "explore" | "columns" | "preview" | "clean" | "log";
+const VALID_TABS: Tab[] = ["quality", "explore", "columns", "preview", "clean", "log"];
 
 export function DataPage() {
   const { project, setProject } = useProject();
   const { datasetId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("quality");
+
+  const rawTab = searchParams.get("tab") as Tab | null;
+  const tab: Tab = rawTab && VALID_TABS.includes(rawTab) ? rawTab : "quality";
+
+  const setTab = useCallback(
+    (next: Tab) => {
+      const nextParams = new URLSearchParams(searchParams);
+      if (next === "quality") nextParams.delete("tab");
+      else nextParams.set("tab", next);
+      setSearchParams(nextParams, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const [exploreCol, setExploreCol] = useState<string | undefined>(undefined);
   const [removing, setRemoving] = useState<Upload | null>(null);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
   const onUploaded = useCallback((p: Project) => setProject(p), [setProject]);
@@ -30,47 +51,100 @@ export function DataPage() {
     if (!datasetId && selected) navigate(`/p/${project.id}/data/${selected.id}`, { replace: true });
   }, [datasetId, selected, navigate, project.id]);
 
+  const populateDemoHere = async () => {
+    setDemoLoading(true);
+    setError(null);
+    playTick();
+    try {
+      const files = buildDemoFiles();
+      let latestProject = project;
+      for (const f of files) {
+        const res = await uploadFile(project.id, f, () => {});
+        latestProject = res.project;
+      }
+      playConfirm();
+      setProject(latestProject);
+    } catch (e) {
+      setError(e);
+    } finally {
+      setDemoLoading(false);
+    }
+  };
+
   const uploads = [...project.uploads].sort((a, b) => b.uploaded_at.localeCompare(a.uploaded_at));
+  const fileDatasets = datasets.filter((d) => d.kind === "file");
   const combined = datasets.filter((d) => d.kind !== "file");
+  const confirmedLinks = project.links.filter((l) => l.status === "confirmed");
 
   return (
     <>
       <div className="topbar">
         <div>
           <h1>Data</h1>
-          <div className="sub">Upload files, check how they were read, and inspect each table's quality.</div>
+          <div className="sub">Upload tables, audit column distributions and quality, and clean issues before analysis.</div>
         </div>
-        {datasets.filter((d) => d.kind === "file").length >= 2 ? (
-          <button className="btn btn-primary" onClick={() => navigate(`/p/${project.id}/connect`)}>
-            Next: connect files →
-          </button>
-        ) : datasets.length === 1 ? (
-          <button className="btn" onClick={() => navigate(`/p/${project.id}/discover`)}>
-            Analyze this file →
-          </button>
-        ) : null}
+
+        <div className="row-wrap" style={{ gap: 8 }}>
+          {fileDatasets.length >= 2 && confirmedLinks.length > 0 ? (
+            <>
+              <button className="btn" onClick={() => navigate(`/p/${project.id}/connect`)}>
+                Connect files ({confirmedLinks.length})
+              </button>
+              <button className="btn btn-primary" onClick={() => navigate(`/p/${project.id}/discover`)}>
+                Discover patterns →
+              </button>
+            </>
+          ) : fileDatasets.length >= 2 ? (
+            <button className="btn btn-primary" onClick={() => navigate(`/p/${project.id}/connect`)}>
+              Next: connect files →
+            </button>
+          ) : datasets.length === 1 ? (
+            <button className="btn btn-primary" onClick={() => navigate(`/p/${project.id}/discover`)}>
+              Analyze this file →
+            </button>
+          ) : null}
+        </div>
       </div>
+
       <div className="content">
         {error ? <ErrorBox error={error} /> : null}
         {datasets.length === 0 && project.uploads.length === 0 ? (
-          <div className="card card-pad" style={{ maxWidth: 760 }}>
-            <h2 style={{ marginBottom: 6 }}>Upload your files</h2>
-            <p className="muted">
-              Add one file to profile it, or several related files (for example customers and orders) to see how they
-              connect. Nothing is uploaded to the internet.
-            </p>
-            <UploadZone uploader={uploader} />
+          <div className="empty-upload-bento">
+            <div className="bento-tile bento-surface-card" style={{ padding: 24 }}>
+              <h2 style={{ marginBottom: 6 }}>Upload your first table</h2>
+              <p className="muted" style={{ maxWidth: "64ch", marginBottom: 16 }}>
+                Drop in 1 table to inspect distributions and anomalies, or upload 2 or more related exports (such as
+                customers and orders) to map foreign-key joins automatically. Original files are read locally and never
+                modified.
+              </p>
+              <UploadZone uploader={uploader} />
+
+              <div className="hr" style={{ margin: "18px 0 14px" }} />
+              <div className="spread" style={{ flexWrap: "wrap" }}>
+                <span className="small muted">Want to test unit alignment, join previews, and Simpson’s paradox right now?</span>
+                <button
+                  type="button"
+                  className="demo-pill-btn"
+                  disabled={demoLoading}
+                  onClick={() => void populateDemoHere()}
+                >
+                  <Sparkles size={14} />
+                  <span>{demoLoading ? "Loading 3 demo tables…" : "Populate with 3 demo tables"}</span>
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="data-layout">
             <div className="stack">
               <UploadZone uploader={uploader} compact />
+
               <div className="card">
                 <div className="card-head">
-                  <h3>Files</h3>
-                  <span className="muted small">{plural(project.uploads.length, "upload")}</span>
+                  <h2>Source files</h2>
+                  <span className="muted small tabular-nums">{plural(project.uploads.length, "upload")}</span>
                 </div>
-                <div className="file-list" style={{ padding: 6 }}>
+                <div className="file-list">
                   {uploads.map((u) => (
                     <UploadEntry
                       key={u.id}
@@ -83,17 +157,27 @@ export function DataPage() {
                   ))}
                 </div>
               </div>
+
               {combined.length ? (
                 <div className="card">
                   <div className="card-head">
-                    <h3>Combined &amp; cleaned tables</h3>
+                    <h2>Derived tables</h2>
+                    <span className="muted small tabular-nums">{combined.length}</span>
                   </div>
-                  <div className="file-list" style={{ padding: 6 }}>
+                  <div className="file-list">
                     {combined.map((d) => (
                       <div
                         key={d.id}
+                        role="button"
+                        tabIndex={0}
                         className={selected?.id === d.id ? "file active" : "file"}
                         onClick={() => navigate(`/p/${project.id}/data/${d.id}`)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            navigate(`/p/${project.id}/data/${d.id}`);
+                          }
+                        }}
                       >
                         <FileIcon format={d.kind === "cleaned" ? "clean" : "combined"} />
                         <div className="grow">
@@ -101,8 +185,8 @@ export function DataPage() {
                             <HealthDot health={d.health} />
                             <span style={{ fontWeight: 600, wordBreak: "break-word" }}>{d.name}</span>
                           </div>
-                          <div className="muted small">
-                            {fmtInt(d.n_rows)} rows · {d.n_cols} columns
+                          <div className="muted small tabular-nums">
+                            {fmtInt(d.n_rows)} rows · {d.n_cols} cols
                           </div>
                         </div>
                       </div>
@@ -111,18 +195,31 @@ export function DataPage() {
                 </div>
               ) : null}
             </div>
-            <div className="card card-pad" style={{ minWidth: 0 }}>
+
+            <div style={{ minWidth: 0 }}>
               {selected ? (
-                <DatasetView dataset={selected} tab={tab} setTab={setTab} />
+                <DatasetView
+                  dataset={selected}
+                  tab={tab}
+                  setTab={setTab}
+                  exploreCol={exploreCol}
+                  onExploreColumn={(colName) => {
+                    setExploreCol(colName);
+                    setTab("explore");
+                  }}
+                />
               ) : (
-                <Empty icon="📄" title="No readable tables yet">
-                  The uploaded files could not be read. Their errors are listed on the left.
-                </Empty>
+                <div className="card">
+                  <Empty icon={<FileWarning size={20} />} title="No readable tables yet">
+                    The uploaded files could not be read. Their errors are listed on the left.
+                  </Empty>
+                </div>
               )}
             </div>
           </div>
         )}
       </div>
+
       {removing ? (
         <Modal
           title={`Remove ${removing.filename}?`}
@@ -150,7 +247,7 @@ export function DataPage() {
           }
         >
           <p>
-            The workspace's copy of this file is deleted, together with combined tables and links built from it. Analysis
+            The workspace’s copy of this file is deleted, together with combined tables and links built from it. Analysis
             runs already completed keep their results.
           </p>
         </Modal>
@@ -184,92 +281,156 @@ function UploadEntry({
           <div className="small" style={{ color: "var(--bad)" }}>
             {upload.error}
           </div>
-          <button className="link-btn small" onClick={onRemove}>
-            Remove
-          </button>
         </div>
+        <button
+          type="button"
+          className="file-remove-btn"
+          onClick={onRemove}
+          title={`Remove ${upload.filename}`}
+          aria-label={`Remove ${upload.filename}`}
+        >
+          <Trash2 size={13} />
+        </button>
       </div>
     );
   }
   return (
     <>
-      {datasets.map((d) => (
-        <div key={d.id} className={selectedId === d.id ? "file active" : "file"} onClick={() => onSelect(d.id)}>
+      {datasets.map((d, idx) => (
+        <div
+          key={d.id}
+          role="button"
+          tabIndex={0}
+          className={selectedId === d.id ? "file active" : "file"}
+          onClick={() => onSelect(d.id)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onSelect(d.id);
+            }
+          }}
+        >
           <FileIcon format={upload.format} />
           <div className="grow">
             <div className="row" style={{ gap: 7 }}>
               <HealthDot health={d.health} />
               <span style={{ fontWeight: 600, wordBreak: "break-word" }}>{d.name}</span>
             </div>
-            <div className="muted small">
-              {fmtInt(d.n_rows)} rows · {d.n_cols} columns · {fmtBytes(upload.size_bytes)}
+            <div className="muted small tabular-nums">
+              {fmtInt(d.n_rows)} rows · {d.n_cols} cols · {fmtBytes(upload.size_bytes)}
             </div>
           </div>
           {d.issues.some((i) => i.level === "warning") ? (
             <Badge tone="warn" title="Read with warnings">
-              !
+              Warning
             </Badge>
+          ) : null}
+          {idx === 0 ? (
+            <button
+              type="button"
+              className="file-remove-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              title={`Remove ${upload.filename}`}
+              aria-label={`Remove ${upload.filename}`}
+            >
+              <Trash2 size={13} />
+            </button>
           ) : null}
         </div>
       ))}
-      {datasets.length ? (
-        <div style={{ padding: "0 12px 6px 52px" }}>
-          <button className="link-btn tiny" onClick={onRemove}>
-            Remove {upload.filename}
-          </button>
-        </div>
-      ) : null}
     </>
   );
 }
 
-function DatasetView({ dataset, tab, setTab }: { dataset: Dataset; tab: Tab; setTab: (t: Tab) => void }) {
+function DatasetView({
+  dataset,
+  tab,
+  setTab,
+  exploreCol,
+  onExploreColumn,
+}: {
+  dataset: Dataset;
+  tab: Tab;
+  setTab: (t: Tab) => void;
+  exploreCol?: string;
+  onExploreColumn: (col: string) => void;
+}) {
   const { project } = useProject();
   const upload = project.uploads.find((u) => u.id === dataset.upload_id);
   const warnings = dataset.issues.filter((i) => i.level !== "info").length;
   const sources = dataset.sources.map((id) => project.datasets.find((d) => d.id === id)?.name ?? id);
+
   return (
-    <div>
-      <div className="spread" style={{ marginBottom: 12, alignItems: "flex-start" }}>
-        <div className="grow">
-          <div className="row-wrap">
-            <HealthDot health={dataset.health} size={16} />
-            <h2 style={{ wordBreak: "break-word" }}>{dataset.name}</h2>
-            <Badge tone={dataset.kind === "file" ? "gray" : "brand"}>
-              {dataset.kind === "combined" ? "Combined table" : dataset.kind === "cleaned" ? "Cleaned table" : upload?.format?.toUpperCase() ?? "File"}
-            </Badge>
-          </div>
-          <div className="muted small" style={{ marginTop: 4 }}>
-            {fmtInt(dataset.n_rows)} rows · {dataset.n_cols} columns
-            {dataset.kind === "combined" ? ` · built from ${sources.join(" + ")}` : dataset.kind === "cleaned" ? ` · cleaned from ${sources.join("")}` : ""} · fingerprint{" "}
-            <span className="mono">{dataset.fingerprint.slice(0, 12)}</span>
-          </div>
-          {dataset.health ? (
-            <div className={`health-line hl-${dataset.health.status}`}>{dataset.health.reasons.join(" · ")}</div>
-          ) : null}
+    <div className="stack" style={{ gap: 16 }}>
+      <div className="dataset-header bento-tile bento-surface-card" style={{ padding: "16px 20px 14px" }}>
+        <div className="row-wrap" style={{ gap: 8 }}>
+          <HealthDot health={dataset.health} size={10} />
+          <h2 className="dataset-title">{dataset.name}</h2>
+          <Badge tone={dataset.kind === "file" ? "outline" : "info"}>
+            {dataset.kind === "combined"
+              ? "Combined table"
+              : dataset.kind === "cleaned"
+                ? "Cleaned table"
+                : (upload?.format?.toUpperCase() ?? "File")}
+          </Badge>
+        </div>
+
+        <div className="muted small tabular-nums" style={{ marginTop: 4 }}>
+          <b>{fmtInt(dataset.n_rows)}</b> rows · <b>{dataset.n_cols}</b> columns
+          {dataset.kind === "combined"
+            ? ` · joined from ${sources.join(" + ")}`
+            : dataset.kind === "cleaned"
+              ? ` · cleaned from ${sources.join("")}`
+              : ""}
+          {dataset.health?.reasons.length ? ` · ${dataset.health.reasons.join(" · ")}` : ""}
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <Tabs<Tab>
+            value={tab}
+            onChange={setTab}
+            items={[
+              { id: "quality", label: "Overview & quality" },
+              { id: "explore", label: "Explore & drill" },
+              { id: "columns", label: `Columns (${dataset.n_cols})` },
+              { id: "preview", label: "Preview rows" },
+              { id: "clean", label: "Clean & export" },
+              { id: "log", label: `How it was read${warnings ? ` (${warnings})` : ""}` },
+            ]}
+          />
         </div>
       </div>
-      <Tabs<Tab>
-        value={tab}
-        onChange={setTab}
-        items={[
-          { id: "quality", label: "Overview & quality" },
-          { id: "columns", label: `Columns (${dataset.n_cols})` },
-          { id: "preview", label: "Preview rows" },
-          { id: "clean", label: "Clean & export ✦" },
-          { id: "log", label: `How it was read${warnings ? ` (${warnings})` : ""}` },
-        ]}
-      />
-      {tab === "preview" ? <DataTable projectId={project.id} datasetId={dataset.id} /> : null}
-      {tab === "columns" ? <ColumnsTab dataset={dataset} /> : null}
+
       {tab === "quality" ? <QualityPanel projectId={project.id} dataset={dataset} /> : null}
+      {tab === "explore" ? (
+        <ExploreStudio key={`${dataset.id}:${exploreCol ?? ""}`} projectId={project.id} dataset={dataset} initialX={exploreCol} />
+      ) : null}
+      {tab === "columns" ? <ColumnsTab dataset={dataset} onExploreColumn={onExploreColumn} /> : null}
+      {tab === "preview" ? (
+        <div className="card card-pad">
+          <DataTable projectId={project.id} datasetId={dataset.id} />
+        </div>
+      ) : null}
       {tab === "clean" ? <CleanPanel dataset={dataset} /> : null}
-      {tab === "log" ? <ParseLog issues={dataset.issues} uploadIssues={upload?.issues ?? []} /> : null}
+      {tab === "log" ? (
+        <div className="card card-pad">
+          <ParseLog issues={dataset.issues} uploadIssues={upload?.issues ?? []} />
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function ColumnsTab({ dataset }: { dataset: Dataset }) {
+function ColumnsTab({
+  dataset,
+  onExploreColumn,
+}: {
+  dataset: Dataset;
+  onExploreColumn: (col: string) => void;
+}) {
   const { project, setProject } = useProject();
   const [error, setError] = useState<unknown>(null);
   const [saving, setSaving] = useState<string | null>(null);
@@ -290,11 +451,19 @@ function ColumnsTab({ dataset }: { dataset: Dataset }) {
   return (
     <div className="stack">
       <Notice tone="info">
-        The <b>role</b> decides how discovery uses a column. Identifiers, codes and dates are never analyzed as numbers.
-        If a role is wrong (for example a numeric product code read as a number), change it here.
+        Column <b>roles</b> govern statistical tests: identifiers, codes, and dates are never analyzed as continuous
+        numbers. Click <b>Drill</b> on any column to inspect its distribution and subgroups.
       </Notice>
       {error ? <ErrorBox error={error} /> : null}
-      <ColumnProfiles projectId={project.id} dataset={dataset} onRoleChange={change} saving={saving} />
+      <div className="card" style={{ overflow: "hidden" }}>
+        <ColumnProfiles
+          projectId={project.id}
+          dataset={dataset}
+          onRoleChange={change}
+          saving={saving}
+          onExploreColumn={onExploreColumn}
+        />
+      </div>
     </div>
   );
 }
@@ -341,7 +510,7 @@ function ParseLog({ issues, uploadIssues }: { issues: ParseIssue[]; uploadIssues
   if (!all.length) {
     return (
       <Notice tone="ok">
-        The file was read without any changes: no renamed columns, no unreadable values, no placeholders.
+        The file was read without any changes: no renamed columns, no unreadable values, no placeholders.{" "}
       </Notice>
     );
   }

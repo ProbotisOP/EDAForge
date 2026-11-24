@@ -3,13 +3,12 @@ import { api } from "../lib/api";
 import { fmtInt, fmtNum, fmtPct, ROLE_LABEL } from "../lib/format";
 import type { ColumnInfo, ColumnProfile, Dataset, DatasetProfile, HistogramBin, QualityIssue, Role } from "../lib/types";
 import { RoleSelect } from "../pages/DataPage";
+import { HealthGauge } from "./kit";
 import { Badge, ErrorBox, Loading } from "./ui";
 
-/** Fetches the engine-computed profile of a dataset (cached server-side). */
 export function useProfile(projectId: string, dataset: Dataset) {
   const [profile, setProfile] = useState<DatasetProfile | null>(null);
   const [error, setError] = useState<unknown>(null);
-  // Role changes invalidate the profile on the server; refetch when the column metadata changes.
   const key = dataset.id + dataset.columns.map((c) => c.role).join(",");
   const load = useCallback(() => {
     setError(null);
@@ -21,11 +20,10 @@ export function useProfile(projectId: string, dataset: Dataset) {
   return { profile, error, reload: load };
 }
 
-function healthColor(score: number): { bg: string; fg: string } {
-  if (score >= 90) return { bg: "var(--ok-soft)", fg: "var(--ok)" };
-  if (score >= 75) return { bg: "#eef7e8", fg: "#3f6212" };
-  if (score >= 50) return { bg: "var(--warn-soft)", fg: "var(--warn)" };
-  return { bg: "var(--bad-soft)", fg: "var(--bad)" };
+function healthStroke(score: number): string {
+  if (score >= 85) return "var(--ok)";
+  if (score >= 60) return "var(--warn)";
+  return "var(--bad)";
 }
 
 export function Sparkline({ bins, width = 120, height = 28 }: { bins: HistogramBin[]; width?: number; height?: number }) {
@@ -37,7 +35,7 @@ export function Sparkline({ bins, width = 120, height = 28 }: { bins: HistogramB
       {bins.map((b, i) => {
         const h = b.count ? Math.max(1.5, (b.count / max) * (height - 2)) : 0;
         return (
-          <rect key={i} x={i * w + 0.5} y={height - h} width={Math.max(1, w - 1)} height={h} fill="#818cf8">
+          <rect key={i} x={i * w + 0.5} y={height - h} width={Math.max(1, w - 1)} height={h} rx={1.5} fill="var(--brand)">
             <title>{`${typeof b.x0 === "number" ? fmtNum(b.x0) : String(b.x0).slice(0, 10)} – ${
               typeof b.x1 === "number" ? fmtNum(b.x1) : String(b.x1).slice(0, 10)
             }: ${fmtInt(b.count)}`}</title>
@@ -51,16 +49,16 @@ export function Sparkline({ bins, width = 120, height = 28 }: { bins: HistogramB
 function TopBars({ values, n }: { values: { value: string; count: number }[]; n: number }) {
   const shown = values.slice(0, 4);
   return (
-    <div style={{ display: "grid", gap: 2 }}>
+    <div style={{ display: "grid", gap: 3 }}>
       {shown.map((v) => (
         <div key={v.value} className="row small" style={{ gap: 6 }}>
           <span className="bar" style={{ width: 54 }}>
-            <span style={{ width: `${(100 * v.count) / Math.max(n, 1)}%`, background: "#818cf8" }} />
+            <span style={{ width: `${(100 * v.count) / Math.max(n, 1)}%`, background: "var(--brand)" }} />
           </span>
           <span style={{ maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={v.value}>
             {v.value}
           </span>
-          <span className="faint">{fmtPct(v.count / Math.max(n, 1), 0)}</span>
+          <span className="faint tabular-nums">{fmtPct(v.count / Math.max(n, 1), 0)}</span>
         </div>
       ))}
     </div>
@@ -71,18 +69,18 @@ const SEVERITY_TONE = { critical: "bad", warning: "warn", info: "info" } as cons
 
 export function IssueItem({ issue }: { issue: QualityIssue }) {
   return (
-    <details className="issue">
+    <details className={`issue issue-${issue.severity}`}>
       <summary>
         <span className={`sev-dot sev-${issue.severity}`} />
         <div className="grow">
           <div className="row-wrap" style={{ gap: 6 }}>
             <strong>{issue.title}</strong>
             <Badge tone={SEVERITY_TONE[issue.severity]}>{issue.severity}</Badge>
-            <Badge tone="outline">{issue.category}</Badge>
+            <span className="muted small">{issue.category}</span>
           </div>
-          <div className="muted small">{issue.detail}</div>
+          <div className="muted small" style={{ marginTop: 2 }}>{issue.detail}</div>
         </div>
-        {issue.count ? <span className="muted small nowrap">{fmtInt(issue.count)}</span> : null}
+        {issue.count ? <span className="muted small nowrap tabular-nums">{fmtInt(issue.count)}</span> : null}
       </summary>
       <div className="body">
         <div>
@@ -119,51 +117,67 @@ export function QualityPanel({ projectId, dataset }: { projectId: string; datase
   const [showMethod, setShowMethod] = useState(false);
   if (error) return <ErrorBox error={error} onRetry={reload} />;
   if (!profile) return <Loading label="Profiling columns…" />;
-  const color = healthColor(profile.health.score);
+  const stroke = healthStroke(profile.health.score);
   const missingCells = profile.columns.reduce((s, c) => s + c.n_missing, 0);
+  const missingPct = (100 * missingCells) / Math.max(1, profile.n_rows * profile.n_cols);
   const counts = { critical: 0, warning: 0, info: 0 };
   for (const i of profile.issues) counts[i.severity] += 1;
+
+  const healthTileTone =
+    profile.health.score >= 85 ? "bento-sage" : profile.health.score >= 60 ? "bento-sand" : "bento-coral";
+
   return (
-    <div className="stack">
-      <div className="row" style={{ gap: 16, alignItems: "stretch", flexWrap: "wrap" }}>
-        <div className="stat row" style={{ gap: 14, minWidth: 300, flex: "1 1 300px" }}>
-          <div className="health-ring" style={{ background: color.bg, color: color.fg }} aria-label="health score">
-            {Number.isInteger(profile.health.score) ? profile.health.score : profile.health.score.toFixed(1)}
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Data health: {profile.health.label}</div>
-            <div className="muted small">
-              {counts.critical} critical · {counts.warning} warnings · {counts.info} notes
+    <div className="stack" style={{ gap: 16 }}>
+      {/* Multi-Tonal Bento KPI Grid (RefUI #4 & #5 signature modular tiles!) */}
+      <div className="bento-kpi-row">
+        <div className={`bento-tile bento-kpi-wide ${healthTileTone}`}>
+          <div className="row" style={{ gap: 14 }}>
+            <HealthGauge score={profile.health.score} color={stroke} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15.5, fontFamily: "var(--display)" }}>
+                Data health: {profile.health.label}
+              </div>
+              <div className="small tabular-nums" style={{ marginTop: 2, opacity: 0.85 }}>
+                {counts.critical} critical · {counts.warning} warnings · {counts.info} notes
+              </div>
+              <button
+                type="button"
+                className="bento-inline-link"
+                style={{ marginTop: 5 }}
+                onClick={() => setShowMethod((v) => !v)}
+              >
+                {showMethod ? "Hide scoring formula" : "How is this calculated?"}
+              </button>
             </div>
-            <button className="link-btn small" onClick={() => setShowMethod((v) => !v)}>
-              {showMethod ? "Hide" : "How is this calculated?"}
-            </button>
           </div>
         </div>
-        <div className="grid-4" style={{ flex: "2 1 420px" }}>
-          <div className="stat">
-            <div className="v">{fmtInt(profile.n_rows)}</div>
-            <div className="l">rows</div>
-          </div>
-          <div className="stat" title={Object.entries(profile.roles).map(([r, n]) => `${n} ${(ROLE_LABEL[r] ?? r).toLowerCase()}`).join(", ")}>
-            <div className="v">{profile.n_cols}</div>
-            <div className="l">columns</div>
-            <div className="faint tiny" style={{ lineHeight: 1.3, marginTop: 2 }}>
-              {Object.entries(profile.roles)
-                .map(([r, n]) => `${n} ${(ROLE_LABEL[r] ?? r).toLowerCase()}`)
-                .join(" · ")}
-            </div>
-          </div>
-          <div className="stat">
-            <div className="v">{fmtPct(missingCells / Math.max(1, profile.n_rows * profile.n_cols))}</div>
-            <div className="l">cells missing</div>
-          </div>
-          <div className="stat">
-            <div className="v">{fmtInt(profile.n_duplicate_rows)}</div>
-            <div className="l">duplicate rows</div>
-          </div>
+
+        <div className="bento-tile bento-kpi-card bento-sky">
+          <div className="bento-kpi-num tabular-nums">{fmtInt(profile.n_rows)}</div>
+          <div className="bento-kpi-lbl">Rows</div>
+        </div>
+
+        <div
+          className="bento-tile bento-kpi-card bento-alabaster-contrast"
+          title={Object.entries(profile.roles)
+            .map(([r, n]) => `${n} ${(ROLE_LABEL[r] ?? r).toLowerCase()}`)
+            .join(", ")}
+        >
+          <div className="bento-kpi-num tabular-nums">{fmtInt(profile.n_cols)}</div>
+          <div className="bento-kpi-lbl">Columns</div>
+        </div>
+
+        <div className="bento-tile bento-kpi-card bento-coral">
+          <div className="bento-kpi-num tabular-nums">{missingPct.toFixed(1)}%</div>
+          <div className="bento-kpi-lbl">Cells missing</div>
+        </div>
+
+        <div className="bento-tile bento-kpi-card bento-surface-card">
+          <div className="bento-kpi-num tabular-nums">{fmtInt(profile.n_duplicate_rows)}</div>
+          <div className="bento-kpi-lbl">Duplicate rows</div>
         </div>
       </div>
+
       {showMethod ? (
         <div className="card card-pad">
           <p className="muted">{profile.health.method}</p>
@@ -199,12 +213,22 @@ export function QualityPanel({ projectId, dataset }: { projectId: string; datase
           </table>
         </div>
       ) : null}
-      <div>
-        <h3 style={{ margin: "6px 0 8px" }}>Issues found ({profile.issues.length})</h3>
+
+      <div className="card">
+        <div className="card-head">
+          <h2>Quality &amp; schema checks</h2>
+          <span className="muted small tabular-nums">{profile.issues.length} flagged</span>
+        </div>
         {profile.issues.length === 0 ? (
-          <div className="notice ok">No issues were found by the checks listed under “How is this calculated?”.</div>
+          <div className="card-pad">
+            <div className="notice ok">No issues were found by the checks listed under “How is this calculated?”.</div>
+          </div>
         ) : (
-          profile.issues.map((issue) => <IssueItem key={issue.id} issue={issue} />)
+          <div className="issue-list">
+            {profile.issues.map((issue) => (
+              <IssueItem key={issue.id} issue={issue} />
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -213,27 +237,37 @@ export function QualityPanel({ projectId, dataset }: { projectId: string; datase
 
 function summary(p: ColumnProfile) {
   if (p.dtype === "integer" || p.dtype === "float") {
-    if (p.role === "identifier") return <span className="muted small">IDs {fmtNum(p.min as number)} – {fmtNum(p.max as number)}</span>;
+    if (p.role === "identifier") {
+      return (
+        <span className="muted small mono">
+          IDs {fmtNum(p.min as number)} – {fmtNum(p.max as number)}
+        </span>
+      );
+    }
     return (
-      <div className="small" style={{ lineHeight: 1.35 }}>
+      <div className="small mono" style={{ lineHeight: 1.4 }}>
         <div>
-          median <b>{fmtNum(p.median)}</b> · mean {fmtNum(p.mean)}
+          med <b>{fmtNum(p.median)}</b> · μ {fmtNum(p.mean)}
         </div>
         <div className="muted">
-          {fmtNum(p.min as number)} – {fmtNum(p.max as number)} · sd {fmtNum(p.std)}
+          [{fmtNum(p.min as number)}, {fmtNum(p.max as number)}] · σ {fmtNum(p.std)}
         </div>
       </div>
     );
   }
   if (p.dtype === "date" || p.dtype === "datetime") {
     return (
-      <div className="small">
+      <div className="small mono">
         {String(p.min).slice(0, 10)} → {String(p.max).slice(0, 10)}
       </div>
     );
   }
   if (p.role === "identifier" && p.distinct_share > 0.95) {
-    return <span className="muted small">{fmtInt(p.n_distinct)} distinct values ({fmtPct(p.distinct_share, 0)} unique)</span>;
+    return (
+      <span className="muted small tabular-nums">
+        {fmtInt(p.n_distinct)} distinct ({fmtPct(p.distinct_share, 0)})
+      </span>
+    );
   }
   return <TopBars values={p.top_values} n={p.n - p.n_missing} />;
 }
@@ -243,18 +277,20 @@ export function ColumnProfiles({
   dataset,
   onRoleChange,
   saving,
+  onExploreColumn,
 }: {
   projectId: string;
   dataset: Dataset;
   onRoleChange: (column: ColumnInfo, role: Role | null) => void;
   saving: string | null;
+  onExploreColumn?: (col: string) => void;
 }) {
   const { profile, error, reload } = useProfile(projectId, dataset);
   if (error) return <ErrorBox error={error} onRetry={reload} />;
   if (!profile) return <Loading label="Profiling columns…" />;
   const byName = new Map(profile.columns.map((c) => [c.name, c]));
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" style={{ border: "none", borderRadius: 0 }}>
       <table className="plain columns-table">
         <thead>
           <tr>
@@ -273,8 +309,21 @@ export function ColumnProfiles({
             return (
               <tr key={c.name}>
                 <td>
-                  <div style={{ fontWeight: 650, wordBreak: "break-word" }}>{c.name}</div>
-                  <div className="faint tiny">
+                  <div className="row-wrap" style={{ gap: 6, justifyContent: "space-between" }}>
+                    <span style={{ fontWeight: 600 }}>{c.name}</span>
+                    {onExploreColumn && !c.pii ? (
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        style={{ height: 24, padding: "0 8px", fontSize: 12 }}
+                        onClick={() => onExploreColumn(c.name)}
+                        title={`Explore and drill into ${c.name}`}
+                      >
+                        Drill →
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="faint tiny mono">
                     {c.dtype}
                     {c.original_name !== c.name ? ` · was “${c.original_name}”` : ""}
                   </div>
@@ -289,11 +338,23 @@ export function ColumnProfiles({
                   <span className="bar">
                     <span style={{ width: `${100 * (p?.missing_share ?? 0)}%` }} />
                   </span>{" "}
-                  <span className="small">{fmtPct(p?.missing_share ?? 0)}</span>
+                  <span className="small tabular-nums">{fmtPct(p?.missing_share ?? 0)}</span>
                 </td>
                 <td className="num">{p ? fmtInt(p.n_distinct) : "—"}</td>
                 <td>{p ? summary(p) : null}</td>
-                <td>{p && p.histogram.length ? <Sparkline bins={p.histogram} /> : <span className="faint small">—</span>}</td>
+                <td>
+                  {p && p.histogram.length ? (
+                    <div
+                      onClick={() => !c.pii && onExploreColumn?.(c.name)}
+                      style={{ cursor: !c.pii && onExploreColumn ? "pointer" : "default" }}
+                      title={!c.pii && onExploreColumn ? `Click to open ${c.name} in Explore` : undefined}
+                    >
+                      <Sparkline bins={p.histogram} />
+                    </div>
+                  ) : (
+                    <span className="faint small">—</span>
+                  )}
+                </td>
                 <td className="small">
                   <div className="row-wrap" style={{ gap: 4 }}>
                     {c.pii ? <Badge tone="bad">personal data: {c.pii.replace("_", " ")}</Badge> : null}

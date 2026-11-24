@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-24T03:20:00Z",
+  "title": "Design System: EDAForge",
+  "extensions": {
+    "colorMeta": {
+      "petrol-deep": {
+        "role": "primary",
+        "displayName": "Deep Petrol",
+        "canonical": "#19383D",
+        "tonalRamp": ["#0D1F22", "#132C30", "#19383D", "#234F56", "#336F78", "#5899A3", "#9AC8CF", "#E1F1F3"]
+      },
+      "petrol-brand": {
+        "role": "primary",
+        "displayName": "Petrol Brand",
+        "canonical": "#155861",
+        "tonalRamp": ["#0B2E33", "#10434A", "#155861", "#1E7480", "#3293A0", "#62B4BF", "#A2D6DD", "#E3F2F4"]
+      },
+      "charcoal-cta": {
+        "role": "primary",
+        "displayName": "Charcoal Petrol CTA",
+        "canonical": "#152329",
+        "tonalRamp": ["#0B1317", "#152329", "#21363F", "#324E5A", "#4B6C7A", "#7393A1", "#ACC1CA", "#E7EEF1"]
+      },
+      "terracotta-coral": {
+        "role": "secondary",
+        "displayName": "Terracotta Coral",
+        "canonical": "#C84B31",
+        "tonalRamp": ["#3D150D", "#682417", "#993623", "#C84B31", "#DE6D55", "#EB9886", "#F6C5BA", "#FBECE8"]
+      },
+      "bento-sage": {
+        "role": "secondary",
+        "displayName": "Bento Sage",
+        "canonical": "#D7ECE7",
+        "tonalRamp": ["#102925", "#183D37", "#265C53", "#3D8277", "#67AA9F", "#9CD0C7", "#D7ECE7", "#F1F9F7"]
+      },
+      "bento-sand": {
+        "role": "tertiary",
+        "displayName": "Bento Sand",
+        "canonical": "#F1E7D2",
+        "tonalRamp": ["#261F10", "#42361D", "#66542F", "#917948", "#B9A272", "#DACBA6", "#F1E7D2", "#FAF6ED"]
+      },
+      "bento-sky": {
+        "role": "tertiary",
+        "displayName": "Bento Periwinkle Sky",
+        "canonical": "#DCE5FA",
+        "tonalRamp": ["#131D38", "#1F305C", "#314B8C", "#4D6EC2", "#7895DF", "#AEBFF0", "#DCE5FA", "#F2F5FD"]
+      },
+      "mineral-frame": {
+        "role": "neutral",
+        "displayName": "Mineral Mist Frame",
+        "canonical": "#DCE8EB",
+        "tonalRamp": ["#12191D", "#26333B", "#46545D", "#6C7D87", "#98A8B0", "#C1CFD4", "#DCE8EB", "#F6F9FA"]
+      },
+      "sky-cyan-dark": {
+        "role": "primary",
+        "displayName": "Electric Sky-Cyan",
+        "canonical": "#4CC9F0",
+        "tonalRamp": ["#081B23", "#0F3442", "#185369", "#247BA0", "#35A4CC", "#4CC9F0", "#8EE0F7", "#DCF6FD"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Launchpad headlines and oversized Bento hero counters." },
+      "headline": { "displayName": "Headline", "purpose": "Primary route headers and dataset titles." },
+      "title": { "displayName": "Title", "purpose": "Bento tile titles, finding headlines, and inspector headers." },
+      "body": { "displayName": "Body", "purpose": "Analytical prose, controls, and methodology tables." },
+      "label": { "displayName": "Monospace Ledger", "purpose": "Code recipes, SHA IDs, numeric cells, and test statistics." }
+    },
+    "shadows": [
+      {
+        "name": "stage-elevation",
+        "value": "0 20px 48px -18px rgba(15, 34, 40, 0.12), 0 2px 8px rgba(15, 34, 40, 0.04)",
+        "purpose": "Separates floating dock and rounded stage window from outer mineral/obsidian frame."
+      },
+      {
+        "name": "card-rest",
+        "value": "0 4px 14px -4px rgba(15, 34, 40, 0.05)",
+        "purpose": "Subtle physical grounding on surface data cards."
+      },
+      {
+        "name": "floating-overlay",
+        "value": "0 18px 42px -10px rgba(15, 28, 34, 0.2), 0 4px 10px rgba(15, 28, 34, 0.07)",
+        "purpose": "Dialogs, command palette, tooltips, and scrolled sticky headers."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Confident arrivals on route transitions, drawers, and child-surface hover lifts."
+      },
+      {
+        "name": "spring-pill",
+        "value": "stiffness: 420, damping: 32, mass: 0.65",
+        "purpose": "Shared layoutId active pills on floating dock, tabs, and segmented controls."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "600px" },
+      { "name": "md", "value": "920px" },
+      { "name": "lg", "value": "1180px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Pill Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "High-contrast pill CTA used once per view for primary workflow progression.",
+      "html": "<button class=\"ds-btn-primary\">Create workspace →</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 20px; border-radius: 999px; border: 1px solid #152329; background: #152329; color: #FFFFFF; font-family: 'Public Sans', sans-serif; font-size: 13.5px; font-weight: 650; cursor: pointer; transition: background 0.15s cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { background: #21363F; } .ds-btn-primary:focus-visible { outline: 2px solid #155861; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Pill Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Neutral surface pill button for secondary toolbar actions and exports.",
+      "html": "<button class=\"ds-btn-secondary\">Review &amp; preview</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; height: 35px; padding: 0 14px; border-radius: 999px; border: 1px solid #BDCAD0; background: #FFFFFF; color: #12191D; font-family: 'Public Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s ease; } .ds-btn-secondary:hover { background: #E2EAEE; } .ds-btn-secondary:focus-visible { outline: 2px solid #155861; outline-offset: 2px; }"
+    },
+    {
+      "name": "Deep Petrol Bento Tile",
+      "kind": "card",
+      "refersTo": "card-bento-petrol",
+      "description": "Color-committed feature Bento card for headline statistical counts and paradox plots.",
+      "html": "<div class=\"ds-bento-petrol\"><div class=\"ds-num\">44</div><div class=\"ds-lbl\">Hypotheses tested (FDR controlled)</div></div>",
+      "css": ".ds-bento-petrol { background: #19383D; color: #F3F9FA; border-radius: 20px; padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; min-height: 96px; } .ds-bento-petrol .ds-num { font-family: 'Bricolage Grotesque', sans-serif; font-size: 30px; font-weight: 750; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; } .ds-bento-petrol .ds-lbl { font-family: 'Public Sans', sans-serif; font-size: 12.5px; color: #B5D5DA; margin-top: 6px; }"
+    },
+    {
+      "name": "Sage Health Bento Tile",
+      "kind": "card",
+      "refersTo": "card-bento-sage",
+      "description": "Matte sage Bento tile used for holdout-confirmed counts and clean data-health scores.",
+      "html": "<div class=\"ds-bento-sage\"><div class=\"ds-num\">95.6</div><div class=\"ds-lbl\">Data health: Good · 0 critical</div></div>",
+      "css": ".ds-bento-sage { background: #D7ECE7; color: #102925; border-radius: 20px; padding: 16px 18px; } .ds-bento-sage .ds-num { font-family: 'Bricolage Grotesque', sans-serif; font-size: 28px; font-weight: 750; font-variant-numeric: tabular-nums; } .ds-bento-sage .ds-lbl { font-family: 'Public Sans', sans-serif; font-size: 12.5px; color: #2E524C; margin-top: 4px; }"
+    },
+    {
+      "name": "Workspace Search Input",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Pill-rounded text input with high-contrast placeholder and soft petrol focus ring.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Workspace name, e.g. Q4 churn audit\" />",
+      "css": ".ds-input { height: 42px; width: 280px; padding: 0 15px; border-radius: 999px; border: 1px solid #BDCAD0; background: #FFFFFF; color: #12191D; font-family: 'Public Sans', sans-serif; font-size: 13.5px; transition: border-color 0.14s ease, box-shadow 0.14s ease; } .ds-input::placeholder { color: #566670; } .ds-input:focus { outline: none; border-color: #155861; box-shadow: 0 0 0 3px #E3F2F4; }"
+    },
+    {
+      "name": "Floating Dock Nav Item",
+      "kind": "nav",
+      "refersTo": "dock-nav",
+      "description": "Pill navigation row inside the floating vertical dock with icon badge and live counter.",
+      "html": "<a class=\"ds-dock-item\" href=\"#data\"><span class=\"ds-dock-left\"><span class=\"ds-dock-icon\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5\"/></svg></span>Data</span><span class=\"ds-dock-count\">3</span></a>",
+      "css": ".ds-dock-item { display: flex; align-items: center; justify-content: space-between; width: 206px; padding: 8px 11px; border-radius: 14px; background: #E0EEF1; color: #12191D; text-decoration: none; font-family: 'Public Sans', sans-serif; font-size: 13.5px; font-weight: 600; } .ds-dock-left { display: inline-flex; align-items: center; gap: 9px; } .ds-dock-icon { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: #152329; color: #FFFFFF; } .ds-dock-count { font-size: 12px; padding: 1px 7px; border-radius: 999px; background: #FFFFFF; color: #12191D; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Evidence Grade Pill Badge",
+      "kind": "chip",
+      "refersTo": "badge-grade",
+      "description": "Semantic pill badge encoding out-of-sample confirmation grade A through E.",
+      "html": "<span class=\"ds-badge-ok\">Grade A · very strong</span>",
+      "css": ".ds-badge-ok { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px; background: #E6F7F4; border: 1px solid #99E2D4; color: #0D6E66; font-family: 'Public Sans', sans-serif; font-size: 12px; font-weight: 600; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Tactile Statistical Bento Studio",
+    "overview": "EDAForge pairs warm, modular Bento architecture with uncompromising statistical precision. Rather than dressing a local analytical workbench in purple-neon AI-startup tropes or flattening it into an austere spreadsheet, the interface frames work inside an atmospheric outer mat (#DCE8EB mineral mist in Light mode; #0D0B0F warm obsidian in Dark mode) with a floating vertical pill dock and a generous rounded stage window (28px radius).\n\nInside the stage, primary telemetry, data-health gauges, join previews, and confirmation counts occupy matte, color-drenched Bento tiles—Deep Petrol, Sage Mint, Blush Terracotta, Sunlit Sand, and Periwinkle Sky in Light mode, morphing into Deep Petrol-Teal, high-contrast Alabaster, and Electric Sky-Cyan in Dark mode.",
+    "keyCharacteristics": [
+      "Floating slim icon pill dock (74px default, 24px radius, expandable to 234px) plus detached bottom squircle control pod (22px radius), separated cleanly from a rounded stage window (28px radius).",
+      "Color-committed matte Bento tiles grouped by spatial gap (14px–18px) rather than nested borders or side stripes.",
+      "Expressive geometric display numerals (Bricolage Grotesque) paired with neutral UI prose (Public Sans) and true code/ledger monospace (Azeret Mono).",
+      "Purposeful, reduced-motion-safe choreography: scroll-vernier progress rail, spring layoutId pills, child-surface hover lift, and interactive Sankey/paradox specimens."
+    ],
+    "rules": [
+      {
+        "name": "The Full-Surface Commitment Rule",
+        "body": "Color belongs to whole Bento tiles or genuine semantic badges (Grade A–E, warning, critical), never to 1-sided card stripes (border-left) or gradient text.",
+        "section": "colors"
+      },
+      {
+        "name": "The Dual-World Contrast Rule",
+        "body": "In Dark mode, exactly 1 focal telemetry tile may invert to crisp Alabaster (#ECF1F3 with #11181C ink) to anchor visual hierarchy without washing out neighboring dark charts.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-Eyebrow Rule",
+        "body": "Never place an uppercase tracked kicker or eyebrow label above a heading; headings carry their own hierarchy, with supporting context placed below.",
+        "section": "typography"
+      },
+      {
+        "name": "The 12px Ledger Floor Rule",
+        "body": "No statistical count, sample size, or column type may render below 12px, and monospace classes never compound em scaling inside small footers.",
+        "section": "typography"
+      },
+      {
+        "name": "The Stationary Hit-Target Rule",
+        "body": "Interactive Bento cards keep their outer hit container motionless on hover while lifting .bento-inner by -2px (cubic-bezier(0.16, 1, 0.3, 1)), preventing pointer-edge flicker.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do group KPI metrics into color-committed matte Bento tiles (20px radius) with Bricolage Grotesque tabular-nums counters.",
+      "Do keep every page element and compact chart at opacity: 1 by default, using scroll progress to drive continuous data curves, ribbon flows, and header compaction.",
+      "Do sync tabs and triage filters to URL search params with { replace: true } so browser back-navigation preserves analyst context.",
+      "Do provide full prefers-reduced-motion alternatives and verify >= 4.5:1 contrast across both Light and Dark Bento worlds."
+    ],
+    "donts": [
+      "Don't add uppercase tracked eyebrow labels above headings (FEATURES, PIPELINE, OVERVIEW).",
+      "Don't use purple-to-blue gradients, bg-clip-text gradient headlines, neon drop-shadows, or frosted glass cards over blurred blobs.",
+      "Don't put 1-sided colored borders (border-left: 4px) on cards or nest bordered cards inside bordered cards.",
+      "Don't use emojis as UI icons or allow Azeret Mono metadata to shrink below 12px."
+    ]
+  }
+}

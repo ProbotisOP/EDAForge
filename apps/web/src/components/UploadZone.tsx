@@ -1,10 +1,13 @@
 import { useCallback, useRef, useState } from "react";
+import { Upload as UploadIcon } from "lucide-react";
 import { uploadFile } from "../lib/api";
 import { fmtBytes, fmtInt } from "../lib/format";
+import { playConfirm, playTick } from "../lib/sound";
 import type { Project, Upload } from "../lib/types";
 import { Badge, HealthDot, Spinner } from "./ui";
 
-const ACCEPT = ".csv,.tsv,.tab,.xlsx,.parquet,.pq,.json,.jsonl,.ndjson,.sqlite,.sqlite3,.db,.duckdb,.mdb,.accdb,.dbf";
+const ACCEPT =
+  ".csv,.tsv,.tab,.xlsx,.parquet,.pq,.json,.jsonl,.ndjson,.sqlite,.sqlite3,.db,.duckdb,.mdb,.accdb,.dbf";
 
 export interface UploadItem {
   key: string;
@@ -22,16 +25,13 @@ export interface Uploader {
   start: (files: FileList | File[]) => void;
 }
 
-/**
- * Upload queue state. It lives in the page, not in the drop zone, so that the list of uploads
- * survives the page switching layout when the first file finishes.
- */
 export function useUploader(projectId: string, onUploaded: (project: Project, uploads: Upload[]) => void): Uploader {
   const [items, setItems] = useState<UploadItem[]>([]);
   const update = (key: string, patch: Partial<UploadItem>) =>
     setItems((list) => list.map((it) => (it.key === key ? { ...it, ...patch } : it)));
   const start = useCallback(
     (files: FileList | File[]) => {
+      playTick();
       const batch = Array.from(files).map((file, i) => ({
         file,
         item: {
@@ -49,6 +49,7 @@ export function useUploader(projectId: string, onUploaded: (project: Project, up
         })
           .then(({ uploads, project }) => {
             const upload = uploads[0];
+            if (upload?.status === "parsed") playConfirm();
             update(item.key, {
               phase: upload?.status === "parsed" ? "done" : "failed",
               upload,
@@ -65,7 +66,6 @@ export function useUploader(projectId: string, onUploaded: (project: Project, up
   return { items, start };
 }
 
-/** Multi-file upload with real byte progress, then the server's parse result per file. */
 export function UploadZone({ uploader, compact = false }: { uploader: Uploader; compact?: boolean }) {
   const [drag, setDrag] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -74,8 +74,7 @@ export function UploadZone({ uploader, compact = false }: { uploader: Uploader; 
   return (
     <div className="stack">
       <div
-        className={drag ? "dropzone drag" : "dropzone"}
-        style={compact ? { padding: 14 } : undefined}
+        className={`dropzone${drag ? " drag" : ""}${compact ? " compact" : ""}`}
         onDragOver={(e) => {
           e.preventDefault();
           setDrag(true);
@@ -92,12 +91,19 @@ export function UploadZone({ uploader, compact = false }: { uploader: Uploader; 
         onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && input.current?.click()}
         aria-label="Upload files"
       >
-        <div style={{ fontSize: compact ? 13 : 15 }}>
-          <strong>Choose files</strong> or drop them here
+        <div className="row" style={{ justifyContent: "center", gap: 7 }}>
+          <UploadIcon size={15} style={{ color: "var(--brand)", flexShrink: 0 }} aria-hidden />
+          <span style={{ fontSize: compact ? 13 : 14 }}>
+            <strong>{compact ? "Add files" : "Choose files"}</strong> or drop them here
+          </span>
         </div>
-        <div className="muted small">
-          CSV, TSV, Excel, Parquet, JSON · databases: Access (.mdb/.accdb), SQLite, DuckDB, dBase · several at once · files stay on this computer
+
+        <div className="muted small" style={{ marginTop: 3 }}>
+          {compact
+            ? "CSV, Excel, Parquet, JSON, SQLite, DuckDB"
+            : "CSV, TSV, Excel, Parquet, JSON, Access (.mdb/.accdb), SQLite, DuckDB, dBase"}
         </div>
+
         <input
           ref={input}
           type="file"
@@ -111,21 +117,28 @@ export function UploadZone({ uploader, compact = false }: { uploader: Uploader; 
           }}
         />
       </div>
-      {items.length > 0 ? (
+
+      {items.filter((it) => !compact || it.phase !== "done").length > 0 ? (
         <div className="card" aria-live="polite">
-          {items.map((it) => (
+          {items
+            .filter((it) => !compact || it.phase !== "done")
+            .map((it) => (
             <div key={it.key} className="upload-item">
               <div className="grow">
                 <div className="row">
                   <strong style={{ wordBreak: "break-all" }}>{it.name}</strong>
-                  <span className="muted small">{fmtBytes(it.size)}</span>
+                  <span className="muted small tabular-nums">{fmtBytes(it.size)}</span>
                 </div>
                 {it.phase === "uploading" ? (
                   <div className="progress" style={{ marginTop: 6 }}>
                     <div style={{ width: `${it.size ? Math.round((100 * it.sent) / it.size) : 0}%` }} />
                   </div>
                 ) : null}
-                {it.phase === "failed" ? <div className="small" style={{ color: "var(--bad)" }}>{it.error}</div> : null}
+                {it.phase === "failed" ? (
+                  <div className="small" style={{ color: "var(--bad)" }}>
+                    {it.error}
+                  </div>
+                ) : null}
                 {it.phase === "done" && it.datasets?.length ? (
                   <div className="row-wrap" style={{ gap: 5, marginTop: 4 }}>
                     {it.datasets.map((d) => (
@@ -137,18 +150,18 @@ export function UploadZone({ uploader, compact = false }: { uploader: Uploader; 
                   <div className="small muted">
                     {it.upload.dataset_ids.length > 1
                       ? `${it.upload.dataset_ids.length} ${["access", "sqlite", "duckdb"].includes(it.upload.format ?? "") ? "tables" : "sheets"} read`
-                      : "Read successfully"}
+                      : "Read"}
                     {it.upload.issues.length ? ` · ${it.upload.issues.map((i) => i.message).join(" ")}` : ""}
                   </div>
                 ) : null}
               </div>
               <div>
                 {it.phase === "uploading" ? (
-                  <span className="muted small">{Math.round((100 * it.sent) / Math.max(it.size, 1))}%</span>
+                  <span className="muted small tabular-nums">{Math.round((100 * it.sent) / Math.max(it.size, 1))}%</span>
                 ) : it.phase === "parsing" ? (
-                  <Spinner label="Reading file…" />
+                  <Spinner label="Reading…" />
                 ) : it.phase === "done" ? (
-                  <Badge tone="ok">Parsed</Badge>
+                  <Badge tone="ok">Read</Badge>
                 ) : (
                   <Badge tone="bad">Failed</Badge>
                 )}
@@ -157,8 +170,9 @@ export function UploadZone({ uploader, compact = false }: { uploader: Uploader; 
           ))}
         </div>
       ) : null}
+
       {items.some((i) => i.phase === "done") ? (
-        <div className="muted small">
+        <div className="muted small tabular-nums">
           {fmtInt(items.filter((i) => i.phase === "done").length)} of {fmtInt(items.length)} files read.
         </div>
       ) : null}

@@ -586,11 +586,12 @@ def universe(request: Request, project_id: str, run_id: str) -> dict[str, Any]:
 
 @router.get("/projects/{project_id}/runs/{run_id}/findings/{finding_id}")
 def finding(request: Request, project_id: str, run_id: str, finding_id: str) -> dict[str, Any]:
+    run = _store(request).get(project_id).run(run_id)
     data = _payload(request, project_id, run_id)
     detail = data["details"].get(finding_id)
     if detail is None:
         raise HTTPException(404, "finding not found")
-    return detail
+    return {**detail, "dataset_id": run.dataset_id}
 
 
 def _safe_cell(value: Any) -> str:

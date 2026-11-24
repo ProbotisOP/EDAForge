@@ -13,6 +13,15 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: false,
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 1600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          echarts: ["echarts"],
+          xyflow: ["@xyflow/react"],
+          motion: ["motion", "cmdk", "@radix-ui/react-dialog", "@radix-ui/react-tooltip"],
+        },
+      },
+    },
   },
 });

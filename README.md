@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
+  <a href="#studio-tour">Studio tour</a> ·
   <a href="#what-it-solves">What it solves</a> ·
   <a href="#try-it-with-demo-data">Demo data</a> ·
   <a href="LICENSE">Apache-2.0</a>
@@ -31,6 +32,18 @@ EDAForge handles that work. Point it at your files and it will:
 - **Tell you when there's nothing there**, instead of handing you coincidences.
 
 No cloud account and no uploads to a third party. Your data stays on your computer.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/launchpad-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/launchpad-light.png">
+    <img src="docs/screenshots/launchpad-light.png" alt="EDAForge Dual-World Bento Launchpad and interactive specimens" width="100%">
+  </picture>
+</p>
+
+<p align="center">
+  <sub>Dual-World Bento Studio — switches between Light Mineral and Dark Obsidian/Petrol worlds (<code>Shift + T</code>), with 1-click demo data, <code>Ctrl + K</code> command palette, and interactive statistical specimens.</sub>
+</p>
 
 ## What it solves
 
@@ -59,21 +72,80 @@ Open **http://127.0.0.1:8000**, create a workspace, and drop in a file.
 
 ## Try it with demo data
 
-No dataset handy? Generate a realistic set of customer and order files with typical problems
-already in them:
+No dataset handy? Click **Load 3-table demo dataset (US + EU + Orders)** right on the Launchpad to spin up a pre-loaded workspace in 1 click, or generate the files on disk from the terminal:
 
 ```bash
 uv run python examples/demo/make_demo.py demo-data
 ```
 
-This writes `customers_us.csv`, `customers_eu.csv`, and `orders.xlsx`. Load all three and watch
-EDAForge:
+This creates US customers (`$`), EU customers (`¢`), and multi-year orders with typical real-world issues already planted in them. Watch EDAForge:
 
-- spot that the EU file stores lifetime value in **cents** while the US file uses **dollars**
+- spot that the EU file stores lifetime value in **cents** while the US file uses **dollars** (`×100`)
 - catch duplicate orders, negative refunds, unknown customer IDs, and inconsistent region labels
 - join orders to customers without silently inflating the row count
 - find the planted patterns, such as a price jump on a specific date and a trend that **reverses**
-  once you split by region
+  once you split by region (Simpson's paradox)
+
+---
+
+## Studio tour
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 1 · Data workbench
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/data-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/data-light.png">
+  <img src="docs/screenshots/data-light.png" alt="EDAForge Data Workbench with slim floating dock and Bento health metrics" width="100%">
+</picture>
+<sub>Slim floating icon dock, radial data-health dial, column distributions, interactive drill studio, and reproducible cleaning recipes.</sub>
+
+</td>
+<td width="50%" valign="top">
+
+### 2 · Connect &amp; unit guard
+<img src="docs/screenshots/connect-schema.png" alt="EDAForge Connect view with interactive schema ER map and unit mismatch guard" width="100%">
+<sub>Interactive foreign-key schema map, row-multiplication pre-flight preview, and 1-click unit rescaling (<code>× 0.01</code> / <code>× 100</code>) before stacking or joining.</sub>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 3 · Ranked discovery feed
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/discover-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/discover-light.png">
+  <img src="docs/screenshots/discover-light.png" alt="EDAForge Discovery Feed with FDR-controlled findings and uncertainty charts" width="100%">
+</picture>
+<sub>Benjamini–Hochberg FDR control and holdout confirmation across group gaps, curves, Simpson's paradox reversals, and cross-file mismatches.</sub>
+
+</td>
+<td width="50%" valign="top">
+
+### 4 · Finding inspector
+<img src="docs/screenshots/finding-inspector.png" alt="EDAForge Finding Inspector with Plain, Analyst, and Scientist explanations" width="100%">
+<sub>Switch between <b>Plain</b>, <b>Analyst</b>, and <b>Scientist</b> lenses, drill into subgroups on IQR + 95% CI plots, and inspect the full statistical ledger.</sub>
+
+</td>
+</tr>
+</table>
+
+<details>
+<summary><b>Keyboard chords &amp; Anscombe's Secret Lab</b></summary>
+
+<br>
+
+- Press `?` anywhere to open keyboard navigation chords (`G` then `H` / `D` / `C` / `F` / `R`), `Ctrl + K` for the command palette, `[` / `]` to step through findings, and `Shift + T` to flip between Light and Dark Bento worlds.
+- Click the 3-bar **EDAForge** mark 5 times (or press `Shift + A`) to open **Anscombe's Secret Lab** — an interactive morphing playground demonstrating why summary statistics without plots mislead.
+
+<p align="center">
+  <img src="docs/screenshots/anscombe-lab.png" alt="Anscombe's Secret Lab inside EDAForge" width="84%">
+</p>
+
+</details>
 
 ---
 
@@ -171,7 +243,7 @@ that automatically, so you don't have to:
 <br>
 
 ```
-apps/web/             React 19 · TypeScript · Vite · three.js (Universe) · Vega-Lite (charts)
+apps/web/             React 19 · TypeScript · Vite · ECharts · React Flow · Motion · Three.js · Vega-Lite
 packages/edaforge/    Python engine (polars · numpy · scipy · scikit-learn · FastAPI)
   ingest/             files and databases
   link/               appends, joins, key and unit detection
@@ -179,7 +251,9 @@ packages/edaforge/    Python engine (polars · numpy · scipy · scikit-learn ·
   discovery/          pattern search, ranking, redundancy, formulas
   rigor/              ledger, FDR, data splits, grading, assumptions
   explain/            Plain / Analyst / Scientist explanations
+  viz/                interactive chart & drill-down specifications
   server/             local API on 127.0.0.1
+DESIGN.md             Dual-World Bento design system & visual tokens
 docs/adr/             architecture decision records
 ```
 

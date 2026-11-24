@@ -396,6 +396,7 @@ export interface FeedItem {
 }
 
 export interface FindingDetail extends FeedItem {
+  dataset_id?: string;
   lenses: Record<"plain" | "analyst" | "scientist", { markdown: string; html: string }>;
   charts: ChartSpec[];
   method: {
@@ -499,4 +500,54 @@ export interface Universe {
   edges: UniverseEdge[];
   rows: number | null;
   dataset: string | null;
+}
+
+
+// ---------------------------------------------------------------- visual explore & drill-down
+
+export type FilterOp = "eq" | "in" | "range" | "date_range";
+export type ExploreMode = "auto" | "group" | "boxplot" | "hierarchy" | "time" | "histogram" | "scatter" | "heatmap";
+export type AggKind = "count" | "share" | "mean" | "median" | "sum";
+export type TimeGrain = "auto" | "year" | "quarter" | "month" | "week" | "day";
+
+export interface DrillFilter {
+  column: string;
+  op?: FilterOp;
+  value?: string | number | boolean | null;
+  values?: string[];
+  low?: number | string | null;
+  high?: number | string | null;
+  label?: string | null;
+}
+
+export interface ExploreQuery {
+  mode?: ExploreMode;
+  x?: string | null;
+  y?: string | null;
+  group?: string | null;
+  dimensions?: string[];
+  agg?: AggKind;
+  time_grain?: TimeGrain;
+  bins?: number;
+  filters?: DrillFilter[];
+}
+
+export interface ExploreResponse {
+  mode: string;
+  x: string | null;
+  y: string | null;
+  group: string | null;
+  agg: string;
+  total_rows: number;
+  matched_rows: number;
+  title: string;
+  subtitle: string;
+  grain_used: string | null;
+  next_grain: string | null;
+  prev_grain: string | null;
+  next_dimensions: string[];
+  data: Record<string, unknown>;
+  summary: Record<string, unknown>;
+  sample_columns: string[];
+  sample_rows: unknown[][];
 }

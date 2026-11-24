@@ -37,7 +37,7 @@ dev = [
 line-length = 100
 target-version = "py312"
 src = ["packages/edaforge/src", "packages/edaforge-plugin-example/src", "benchmarks/src", "tools/src"]
-extend-exclude = ["docs/archive/PROJECT_PROMPT.v1.md", "apps/web"]
+extend-exclude = ["docs/archive/PROJECT_PROMPT.v1.md", "apps/web", ".agent"]
 
 [tool.ruff.lint]
 select = [

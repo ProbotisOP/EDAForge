@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from edaforge.ingest import Role
 from edaforge.profile import DatasetProfile, profile_dataset
 from edaforge.server.store import DatasetMeta, NotFound, Project, ProjectStore
+from edaforge.viz.explore import ExploreQuery, ExploreResponse, explore_dataset
 
 router = APIRouter()
 
@@ -166,3 +167,13 @@ def load_profile(store: ProjectStore, project_id: str, dataset_id: str) -> Datas
 @router.get("/projects/{project_id}/datasets/{dataset_id}/profile")
 def dataset_profile(request: Request, project_id: str, dataset_id: str) -> DatasetProfile:
     return load_profile(_store(request), project_id, dataset_id)
+
+
+@router.post("/projects/{project_id}/datasets/{dataset_id}/explore")
+def dataset_explore(
+    request: Request, project_id: str, dataset_id: str, query: ExploreQuery
+) -> ExploreResponse:
+    store = _store(request)
+    meta = store.get(project_id).dataset(dataset_id)
+    frame = store.frame(project_id, dataset_id)
+    return explore_dataset(frame, meta.columns, query)

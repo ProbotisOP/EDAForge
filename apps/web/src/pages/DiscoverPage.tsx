@@ -1,18 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  Activity,
+  AlertOctagon,
+  ChevronDown,
+  ChevronRight,
+  Compass,
+  GitCompare,
+  HeartPulse,
+  Network,
+  Target,
+} from "lucide-react";
 import { InsightFeed } from "../components/Feed";
+import { SpringSegmented } from "../components/kit";
 import { Badge, Empty, ErrorBox, HealthDot, Loading, Notice, Spinner } from "../components/ui";
 import { api, subscribeRun } from "../lib/api";
 import { fmtDate, fmtInt, ROLE_LABEL } from "../lib/format";
+import { playConfirm, playDetent, playTick } from "../lib/sound";
 import type { ColumnInfo, Dataset, Intent, PlanItem, RunEvent, RunResultView, RunSettings, ScopePlan } from "../lib/types";
 import { useProject } from "./ProjectLayout";
 
-const INTENTS: { id: Intent; title: string; text: string }[] = [
-  { id: "auto", title: "Find hidden patterns", text: "Every applicable analysis, no outcome needed" },
-  { id: "target", title: "Explain an outcome", text: "What goes with one column you care about" },
-  { id: "compare", title: "Compare files or groups", text: "How sources or groups differ" },
-  { id: "anomalies", title: "Investigate unusual records", text: "Outliers and changes over time" },
-  { id: "health", title: "Check data health", text: "Quality checks and leakage only" },
+const INTENTS: { id: Intent; title: string; text: string; icon: typeof Compass }[] = [
+  { id: "auto", title: "Find hidden patterns", text: "Every applicable analysis, no outcome needed", icon: Compass },
+  { id: "target", title: "Explain an outcome", text: "What goes with 1 column you care about", icon: Target },
+  { id: "compare", title: "Compare files or groups", text: "How sources or groups differ", icon: GitCompare },
+  { id: "anomalies", title: "Investigate unusual records", text: "Outliers and changes over time", icon: AlertOctagon },
+  { id: "health", title: "Check data health", text: "Quality checks and leakage only", icon: HeartPulse },
 ];
 
 function defaultDataset(datasets: Dataset[], wanted: string | null): Dataset | undefined {
@@ -119,7 +132,7 @@ export function DiscoverPage() {
         <Header />
         <div className="content">
           <div className="card">
-            <Empty icon="📂" title="Nothing to analyze yet">
+            <Empty title="Nothing to analyze yet">
               Upload files on the <Link to={`/p/${project.id}/data`}>Data</Link> page first.
             </Empty>
           </div>
@@ -128,14 +141,17 @@ export function DiscoverPage() {
     );
   }
 
-  const cols: ColumnInfo[] = multi ? ((scopePlan?.columns ?? []) as ColumnInfo[]) : dataset?.columns ?? [];
+  const cols: ColumnInfo[] = multi ? ((scopePlan?.columns ?? []) as ColumnInfo[]) : (dataset?.columns ?? []);
   const usable = cols.filter((c) => !c.pii && ["numeric", "categorical", "boolean"].includes(c.role));
   const dates = cols.filter((c) => c.role === "datetime");
   const groups = cols.filter((c) => ["categorical", "boolean"].includes(c.role));
-  const runnable = plan && !planError && plan.plan.some((p) => p.status === "run") && (!multi || (scopePlan && (!scopePlan.requires_ack || ack)));
+  const runnable =
+    plan && !planError && plan.plan.some((p) => p.status === "run") && (!multi || (scopePlan && (!scopePlan.requires_ack || ack)));
+
   const start = async () => {
     setStarting(true);
     setStartError(null);
+    playTick();
     try {
       const { run_id } = await api.startRun(project.id, settings);
       navigate(`/p/${project.id}/discover/runs/${run_id}`);
@@ -145,7 +161,9 @@ export function DiscoverPage() {
       setStarting(false);
     }
   };
+
   const cycle = (name: string) => {
+    playTick();
     if (focus.includes(name)) {
       setFocus(focus.filter((n) => n !== name));
       setExclude([...exclude, name]);
@@ -165,34 +183,45 @@ export function DiscoverPage() {
           <div className="setup">
             <div className="field" style={{ gridColumn: "span 2" }}>
               <span>Where to look</span>
-              <div className="seg scope-seg" role="radiogroup" aria-label="Scope">
-                {([["one", "One table"], ["several", "Several files"], ["all", `All files (${files.length})`]] as const).map(([m, label]) => (
-                  <button key={m} role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} disabled={m !== "one" && files.length < 2} onClick={() => setMode(m)}>
-                    {label}
-                  </button>
-                ))}
+              <div className="scope-seg">
+                <SpringSegmented<"one" | "several" | "all">
+                  role="radiogroup"
+                  ariaLabel="Scope"
+                  value={mode}
+                  onChange={setMode}
+                  items={[
+                    { id: "one", label: "1 table" },
+                    { id: "several", label: "Several files", disabled: files.length < 2 },
+                    { id: "all", label: `All files (${files.length})`, disabled: files.length < 2 },
+                  ]}
+                />
               </div>
               {mode === "one" ? (
                 <select value={datasetId} onChange={(e) => setDatasetId(e.target.value)} aria-label="Table to analyze">
                   {datasets.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.kind === "combined" ? "⋈ " : ""}
-                      {d.name} — {fmtInt(d.n_rows)} rows
+                      {d.name} — {fmtInt(d.n_rows)} rows{d.kind === "combined" ? " (combined)" : ""}
                     </option>
                   ))}
                 </select>
               ) : mode === "several" ? (
                 <div className="chips" aria-label="Files to connect">
                   {files.map((d) => (
-                    <button key={d.id} className={picked.includes(d.id) ? "chip on" : "chip"} onClick={() => setPicked(picked.includes(d.id) ? picked.filter((x) => x !== d.id) : [...picked, d.id])}>
-                      <HealthDot health={d.health} size={9} /> {d.name}
+                    <button
+                      key={d.id}
+                      className={picked.includes(d.id) ? "chip on" : "chip"}
+                      onClick={() => setPicked(picked.includes(d.id) ? picked.filter((x) => x !== d.id) : [...picked, d.id])}
+                    >
+                      <HealthDot health={d.health} size={8} /> {d.name}
                     </button>
                   ))}
                 </div>
               ) : null}
             </div>
             <label className="field" style={{ gridColumn: "span 2" }}>
-              Outcome to explain <span className="hint">{intent === "target" ? "required" : "optional — focuses the search"}</span>
+              <span>
+                Outcome to explain <span className="hint">{intent === "target" ? "required" : "optional — focuses the search"}</span>
+              </span>
               <select value={target} onChange={(e) => setTarget(e.target.value)} aria-label="Outcome column">
                 <option value="">— none —</option>
                 {usable.map((c) => (
@@ -203,27 +232,48 @@ export function DiscoverPage() {
               </select>
             </label>
           </div>
+
           {multi || (mode === "several" && picked.length < 2) ? (
             <ScopePanel plan={scopePlan} error={scopeError} ack={ack} setAck={setAck} needMore={mode === "several" && picked.length < 2} />
           ) : null}
+
           <div className="intent-grid" role="radiogroup" aria-label="Analysis intent">
-            {INTENTS.map((i) => (
-              <button key={i.id} className={intent === i.id ? "intent active" : "intent"} onClick={() => setIntent(i.id)} role="radio" aria-checked={intent === i.id}>
-                <strong>{i.title}</strong>
-                <span>{i.text}</span>
-              </button>
-            ))}
+            {INTENTS.map((i) => {
+              const Icon = i.icon;
+              const active = intent === i.id;
+              return (
+                <button
+                  key={i.id}
+                  type="button"
+                  className={active ? "intent active" : "intent"}
+                  onClick={() => {
+                    playDetent();
+                    setIntent(i.id);
+                  }}
+                  role="radio"
+                  aria-checked={active}
+                >
+                  <div className="intent-head">
+                    <Icon size={14} />
+                    <strong>{i.title}</strong>
+                  </div>
+                  <span>{i.text}</span>
+                </button>
+              );
+            })}
           </div>
+
           <div>
-            <button className="link-btn small" onClick={() => setShowOptions(!showOptions)}>
-              {showOptions ? "▾ Hide options" : "▸ Options: time column, comparison, focus and exclusions"}
+            <button type="button" className="link-btn small" onClick={() => setShowOptions(!showOptions)}>
+              {showOptions ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              <span>{showOptions ? "Hide options" : "Options: time column, comparison, focus, and exclusions"}</span>
             </button>
           </div>
           {showOptions ? (
             <div className="stack">
               <div className="setup">
                 <label className="field">
-                  Date column for time patterns
+                  <span>Date column for time patterns</span>
                   <select value={timeColumn} onChange={(e) => setTimeColumn(e.target.value)}>
                     <option value="">{dates.length ? "automatic (first date column)" : "— no date columns —"}</option>
                     {dates.map((c) => (
@@ -232,7 +282,7 @@ export function DiscoverPage() {
                   </select>
                 </label>
                 <label className="field">
-                  Compare groups by
+                  <span>Compare groups by</span>
                   <select value={groupColumn} onChange={(e) => setGroupColumn(e.target.value)}>
                     <option value="">{dataset?.kind === "combined" ? "source files (if appended)" : "— none —"}</option>
                     {groups.map((c) => (
@@ -240,10 +290,21 @@ export function DiscoverPage() {
                     ))}
                   </select>
                 </label>
-                <label className="field" title="Labels with fewer rows are combined into '(other)'. The minimum is 10: smaller groups give effect sizes that cannot be trusted.">
-                  Smallest group (rows)
-                  <input type="number" min={10} max={1000} step={1} value={minGroup} aria-label="Smallest group size"
-                    onChange={(e) => setMinGroup(Number(e.target.value))} onBlur={() => setMinGroup((v) => Math.min(1000, Math.max(10, Math.round(v) || 10)))} />
+                <label
+                  className="field"
+                  title="Labels with fewer rows are combined into '(other)'. The minimum is 10: smaller groups give effect sizes that cannot be trusted."
+                >
+                  <span>Smallest group (rows)</span>
+                  <input
+                    type="number"
+                    min={10}
+                    max={1000}
+                    step={1}
+                    value={minGroup}
+                    aria-label="Smallest group size"
+                    onChange={(e) => setMinGroup(Number(e.target.value))}
+                    onBlur={() => setMinGroup((v) => Math.min(1000, Math.max(10, Math.round(v) || 10)))}
+                  />
                 </label>
               </div>
               <div>
@@ -266,10 +327,11 @@ export function DiscoverPage() {
               </div>
             </div>
           ) : null}
+
           <div className="hr" />
-          <div className="spread" style={{ alignItems: "flex-start" }}>
+          <div className="spread" style={{ alignItems: "flex-start", flexWrap: "wrap" }}>
             <div className="grow">
-              <h3 style={{ marginBottom: 6 }}>What will run</h3>
+              <h2 className="panel-title" style={{ marginBottom: 6 }}>What will run</h2>
               {planError ? <Notice tone="warn">{planError instanceof Error ? planError.message : String(planError)}</Notice> : null}
               {!plan && !planError ? <Spinner label="Checking which analyses apply…" /> : null}
               {plan ? (
@@ -277,7 +339,9 @@ export function DiscoverPage() {
                   <tbody>
                     {plan.plan.map((p) => (
                       <tr key={p.analyzer} style={p.status === "skipped" ? { color: "var(--faint)" } : undefined}>
-                        <td style={{ width: 22 }}>{p.status === "run" ? "✓" : "–"}</td>
+                        <td style={{ width: 22 }}>
+                          {p.status === "run" ? "✓" : "–"}
+                        </td>
                         <td style={{ fontWeight: 600 }}>{p.label}</td>
                         <td>{p.reason}</td>
                         <td className="small muted">{p.status === "run" ? p.method : ""}</td>
@@ -295,31 +359,41 @@ export function DiscoverPage() {
               ) : null}
             </div>
             <div className="stack" style={{ alignItems: "flex-end", minWidth: 230 }}>
-              <button className="btn btn-primary btn-hero" disabled={!runnable || starting} onClick={start}>
+              <button
+                className="btn btn-primary btn-hero"
+                disabled={!runnable || starting}
+                onClick={start}
+              >
                 {starting ? "Starting…" : "Find hidden patterns"}
               </button>
-              <span className="tiny muted" style={{ textAlign: "right", maxWidth: 230 }}>
-                Findings are tested with false-discovery control and checked on data the search does not see.
+              <span className="tiny muted" style={{ textAlign: "right", maxWidth: 240 }}>
+                Findings are tested with false-discovery control and checked on rows the search does not see.
               </span>
             </div>
           </div>
           {startError ? <ErrorBox error={startError} /> : null}
         </div>
+
         {runs.length ? (
           <div className="card">
             <div className="card-head">
-              <h3>Previous runs</h3>
+              <h2>Previous runs</h2>
             </div>
             <table className="plain">
               <tbody>
                 {runs.map((r) => (
                   <tr key={r.id} className="clickable" onClick={() => navigate(`/p/${project.id}/discover/runs/${r.id}`)}>
                     <td style={{ fontWeight: 600 }}>{String(r.summary.dataset ?? r.dataset_id)}</td>
-                    <td>{INTENTS.find((i) => i.id === r.settings.intent)?.title ?? r.settings.intent}{r.settings.target ? ` · outcome ${r.settings.target}` : ""}</td>
+                    <td>
+                      {INTENTS.find((i) => i.id === r.settings.intent)?.title ?? r.settings.intent}
+                      {r.settings.target ? ` · outcome ${r.settings.target}` : ""}
+                    </td>
                     <td>
                       <Badge tone={r.status === "completed" ? "ok" : r.status === "failed" ? "bad" : "gray"}>{r.status}</Badge>
                     </td>
-                    <td className="muted">{r.status === "completed" ? `${r.summary.n_findings ?? 0} findings · ${r.summary.n_facts ?? 0} facts` : ""}</td>
+                    <td className="muted tabular-nums">
+                      {r.status === "completed" ? `${r.summary.n_findings ?? 0} findings · ${r.summary.n_facts ?? 0} facts` : ""}
+                    </td>
                     <td className="muted small">{fmtDate(r.created_at)}</td>
                   </tr>
                 ))}
@@ -332,33 +406,51 @@ export function DiscoverPage() {
   );
 }
 
-function ScopePanel({ plan, error, ack, setAck, needMore }: { plan: ScopePlan | null; error: unknown; ack: boolean; setAck: (v: boolean) => void; needMore: boolean }) {
-  if (needMore) return <Notice tone="info">Choose two or more files to see how they connect.</Notice>;
+function ScopePanel({
+  plan,
+  error,
+  ack,
+  setAck,
+  needMore,
+}: {
+  plan: ScopePlan | null;
+  error: unknown;
+  ack: boolean;
+  setAck: (v: boolean) => void;
+  needMore: boolean;
+}) {
+  if (needMore) return <Notice tone="info">Choose 2 or more files to see how they connect.</Notice>;
   if (error) return <ErrorBox error={error} />;
   if (!plan) return <Spinner label="Working out how these files connect…" />;
   return (
     <div className="scope-panel">
       <div className="spread">
-        <h3>How these files connect</h3>
-        <span className="muted small">{plan.steps.length ? `→ one table of ${fmtInt(plan.result_rows)} rows` : "no connection found"}</span>
+        <h2 className="panel-title">How these files connect</h2>
+        <span className="muted small tabular-nums">
+          {plan.steps.length ? `→ 1 table of ${fmtInt(plan.result_rows)} rows` : "no connection found"}
+        </span>
       </div>
       <ol className="scope-steps">
         {plan.steps.map((s, i) => (
           <li key={i}>
             <div className="row-wrap">
-              <Badge tone={s.kind === "append" ? "brand" : "info"}>{s.kind === "append" ? "Stack" : "Join"}</Badge>
+              <Badge tone="info">{s.kind === "append" ? "Stack" : "Join"}</Badge>
               <strong>{s.left_name}</strong>
-              <span className="muted">{s.kind === "append" ? "＋" : "⟶"}</span>
+              <span className="muted">{s.kind === "append" ? "+" : "→"}</span>
               <strong>{s.right_name}</strong>
-              {s.kind !== "append" ? <span className="muted small">on {s.spec.keys.map((k) => `${k.left} = ${k.right}`).join(", ")}</span> : null}
+              {s.kind !== "append" ? <span className="muted small mono">on {s.spec.keys.map((k) => `${k.left} = ${k.right}`).join(", ")}</span> : null}
             </div>
-            <div className="small muted">
+            <div className="small muted tabular-nums">
               {fmtInt(s.n_left)} + {fmtInt(s.n_right)} rows → {fmtInt(s.n_result)} rows
               {s.kind !== "append" ? ` (${s.row_multiplication.toFixed(2)}× the base)` : ""} · confidence {Math.round(s.confidence * 100)}%
             </div>
-            {s.warnings.filter((w) => w.severity !== "info").map((w, j) => (
-              <div key={j} className={`small ${w.severity === "critical" ? "txt-bad" : "txt-warn"}`}>⚠ {w.message}</div>
-            ))}
+            {s.warnings
+              .filter((w) => w.severity !== "info")
+              .map((w, j) => (
+                <div key={j} className={`small ${w.severity === "critical" ? "txt-bad" : "txt-warn"}`}>
+                  {w.message}
+                </div>
+              ))}
           </li>
         ))}
       </ol>
@@ -373,7 +465,7 @@ function ScopePanel({ plan, error, ack, setAck, needMore }: { plan: ScopePlan | 
           <span>I have reviewed this: {plan.steps.flatMap((s) => s.ack_reasons).join("; ")}.</span>
         </label>
       ) : null}
-      <div className="tiny muted">The connected tables are saved on the Connect page, where you can inspect, change or remove them.</div>
+      <div className="tiny muted">The connected tables are saved on the Connect page, where you can inspect, change, or remove them.</div>
     </div>
   );
 }
@@ -383,7 +475,7 @@ function Header({ action }: { action?: React.ReactNode }) {
     <div className="topbar">
       <div>
         <h1>Discover</h1>
-        <div className="sub">Search for relationships, segments, reversals, changes and mismatches — and check every one of them.</div>
+        <div className="sub">Search for relationships, segments, reversals, changes, and mismatches — and check every one of them.</div>
       </div>
       {action}
     </div>
@@ -433,6 +525,7 @@ export function RunPage() {
         }
       },
       () => {
+        playConfirm();
         load();
         void refresh();
       },
@@ -440,23 +533,42 @@ export function RunPage() {
     return close;
   }, [running, project.id, runId, load, refresh]);
 
-  if (error) return <div className="content" style={{ paddingTop: 24 }}><ErrorBox error={error} onRetry={load} /></div>;
+  if (error)
+    return (
+      <div className="content" style={{ paddingTop: 24 }}>
+        <ErrorBox error={error} onRetry={load} />
+      </div>
+    );
   if (!view) return <Loading label="Loading run…" />;
   const run = view.run;
 
   const headerAction = (
-    <div className="row">
+    <div className="row" style={{ flexWrap: "wrap" }}>
       <button className="btn" onClick={() => navigate(`/p/${project.id}/discover`)}>
         New analysis
       </button>
       {run.status === "completed" ? (
-        <button className="btn btn-universe" onClick={() => navigate(`/p/${project.id}/discover/runs/${run.id}/universe`)}>
-          Enter the Data Universe ✦
+        <button
+          className="btn"
+          aria-label="Enter the Data Universe ✦"
+          onClick={() => {
+            playTick();
+            navigate(`/p/${project.id}/discover/runs/${run.id}/universe`);
+          }}
+        >
+          <Network size={14} />
+          <span>Enter the Data Universe</span>
         </button>
       ) : null}
       {run.status === "completed" ? (
-        <button className="btn btn-primary" onClick={() => navigate(`/p/${project.id}/report/${run.id}`)}>
-          Report & export →
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            playTick();
+            navigate(`/p/${project.id}/report/${run.id}`);
+          }}
+        >
+          Report &amp; export →
         </button>
       ) : null}
     </div>
@@ -479,11 +591,12 @@ export function RunPage() {
           <div className="card card-pad stack">
             <div className="spread">
               <div className="row">
-                <Spinner large />
+                <Activity size={18} style={{ color: "var(--brand)" }} />
                 <div>
                   <h2>{stage}…</h2>
-                  <div className="muted small">
-                    {String(view.dataset.name)} · started {fmtDate(run.created_at)} · {candidates} candidates so far{findings ? ` · ${findings} findings graded` : ""}
+                  <div className="muted small tabular-nums">
+                    {String(view.dataset.name)} · started {fmtDate(run.created_at)} · {candidates} candidates
+                    {findings ? ` · ${findings} graded` : ""}
                   </div>
                 </div>
               </div>
@@ -503,36 +616,47 @@ export function RunPage() {
               </button>
             </div>
             <div className="stage-list">
-              {view.plan.filter((p) => p.status === "run" && !p.analyzer.startsWith("describe.")).map((p) => {
-                const pr = progress[p.analyzer];
-                const share = pr && pr.total ? pr.done / pr.total : 0;
-                return (
-                  <div key={p.analyzer} className={pr ? (share >= 1 ? "stage done" : "stage active") : "stage wait"}>
-                    <span className="dot">{pr ? (share >= 1 ? "✓" : "…") : "·"}</span>
-                    <span style={{ width: 300 }}>{p.label}</span>
-                    {pr ? (
-                      <>
-                        <div className="progress" style={{ width: 200 }}>
-                          <div style={{ width: `${Math.round(100 * share)}%` }} />
-                        </div>
-                        <span className="muted small">
-                          {pr.done} of {pr.total} · {pr.pass.replace("split", "half-split ").replace("/select", "")}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="faint small">waiting</span>
-                    )}
-                  </div>
-                );
-              })}
+              {view.plan
+                .filter((p) => p.status === "run" && !p.analyzer.startsWith("describe."))
+                .map((p) => {
+                  const pr = progress[p.analyzer];
+                  const share = pr && pr.total ? pr.done / pr.total : 0;
+                  return (
+                    <div key={p.analyzer} className={pr ? (share >= 1 ? "stage done" : "stage active") : "stage wait"}>
+                      <span className="dot">{pr ? (share >= 1 ? "✓" : "…") : "·"}</span>
+                      <span style={{ width: 300 }}>{p.label}</span>
+                      {pr ? (
+                        <>
+                          <div className="progress" style={{ width: 200 }}>
+                            <div style={{ width: `${Math.round(100 * share)}%` }} />
+                          </div>
+                          <span className="muted small tabular-nums">
+                            {pr.done} of {pr.total} · {pr.pass.replace("split", "half-split ").replace("/select", "")}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="faint small">waiting</span>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
             <div className="log" aria-live="polite">
-              {events.filter((e) => e.kind !== "progress").slice(-40).map((e) => (
-                <div key={e.seq} className={e.kind === "warning" ? "warn" : ""}>
-                  {e.kind === "candidate" ? "candidate · " : e.kind === "finding" ? "graded · " : e.kind === "warning" ? "note · " : ""}
-                  {e.message}
-                </div>
-              ))}
+              {events
+                .filter((e) => e.kind !== "progress")
+                .slice(-40)
+                .map((e) => (
+                  <div key={e.seq} className={e.kind === "warning" ? "warn" : ""}>
+                    {e.kind === "candidate"
+                      ? "candidate · "
+                      : e.kind === "finding"
+                        ? "graded · "
+                        : e.kind === "warning"
+                          ? "note · "
+                          : ""}
+                    {e.message}
+                  </div>
+                ))}
             </div>
             <div className="muted small">
               Progress counts are real: each line is reported by the engine as it finishes a test. Candidates are not results until they
@@ -550,7 +674,9 @@ export function RunPage() {
         <Header action={headerAction} />
         <div className="content">
           <Notice tone={run.status === "failed" ? "bad" : "info"}>
-            {run.status === "failed" ? `This run failed: ${run.error ?? "unknown error"}` : "This run was cancelled before it finished; no results were kept."}
+            {run.status === "failed"
+              ? `This run failed: ${run.error ?? "unknown error"}`
+              : "This run was cancelled before it finished; no results were kept."}
           </Notice>
         </div>
       </>
@@ -561,48 +687,56 @@ export function RunPage() {
   const leaders = view.feed.filter((i) => !i.merged_into);
   const inferential = leaders.filter((i) => i.evidence.basis === "inferential" && i.evidence.grade !== "E");
   const confirmed = leaders.filter((i) => i.evidence.confirmation.startsWith("confirmed"));
+  const factsCount = leaders.length - inferential.length - leaders.filter((i) => i.evidence.grade === "E").length;
   const tested = view.searched.reduce((s, x) => s + x.tested, 0);
+
   return (
     <>
       <Header action={headerAction} />
       <div className="content stack">
-        <div className="card card-pad">
-          <div className="grid-4">
-            <div className="stat">
-              <div className="v">{inferential.length}</div>
-              <div className="l">findings (grade A–D)</div>
-            </div>
-            <div className="stat">
-              <div className="v">{confirmed.length}</div>
-              <div className="l">confirmed on held-out data</div>
-            </div>
-            <div className="stat">
-              <div className="v">{leaders.length - inferential.length - leaders.filter((i) => i.evidence.grade === "E").length}</div>
-              <div className="l">data facts (quality, unusual records)</div>
-            </div>
-            <div className="stat">
-              <div className="v">{fmtInt(tested)}</div>
-              <div className="l">hypotheses tested, with false-discovery control</div>
+        <div className="bento-kpi-4">
+          <div className="bento-tile bento-kpi-card bento-petrol">
+            <div className="bento-kpi-num tabular-nums">{fmtInt(inferential.length)}</div>
+            <div className="bento-kpi-lbl">Findings (grade A–D)</div>
+          </div>
+          <div className="bento-tile bento-kpi-card bento-alabaster-contrast">
+            <div className="bento-kpi-num tabular-nums">{fmtInt(confirmed.length)}</div>
+            <div className="bento-kpi-lbl">
+              {split.mode === "cross_fit" ? "Confirmed via cross-fitting" : "Confirmed on held-out data"}
             </div>
           </div>
-          <div className="muted small mt">
-            {String(view.dataset.name)} ·{" "}
-            {split.mode === "holdout"
-              ? `searched ${fmtInt(split.n_exploration)} rows, then re-tested every candidate on ${fmtInt(split.n_confirmation)} sealed rows`
-              : split.mode === "cross_fit"
-                ? `cross-fitting: candidates re-tested on random halves (${split.strategy})`
-                : "small sample: no rows could be held out, so every finding is exploratory"}
-            {run.settings.target ? ` · outcome: ${run.settings.target}` : ""} · {fmtDate(run.created_at)}
+          <div className="bento-tile bento-kpi-card bento-sage">
+            <div className="bento-kpi-num tabular-nums">{fmtInt(factsCount)}</div>
+            <div className="bento-kpi-lbl">Data facts &amp; checks</div>
+          </div>
+          <div className="bento-tile bento-kpi-card bento-sky">
+            <div className="bento-kpi-num tabular-nums">{fmtInt(tested)}</div>
+            <div className="bento-kpi-lbl">Hypotheses tested (FDR controlled)</div>
           </div>
         </div>
+
+        <div className="muted small tabular-nums">
+          <b>{String(view.dataset.name)}</b> ·{" "}
+          {split.mode === "holdout"
+            ? `searched ${fmtInt(split.n_exploration)} rows, then re-tested every candidate on ${fmtInt(split.n_confirmation)} sealed rows`
+            : split.mode === "cross_fit"
+              ? `cross-fitting: candidates re-tested on random halves (${split.strategy})`
+              : "small sample: no rows could be held out, so every finding is exploratory"}
+          {run.settings.target ? ` · outcome: ${run.settings.target}` : ""} · {fmtDate(run.created_at)}
+        </div>
+
         {view.null_results.length ? (
           <Notice tone="info">
-            <b>Searched without a reportable result:</b> {view.null_results.map((n) => `${n.label} (${n.message.replace("Tested ", "").replace(" hypotheses; none held up after false-discovery control.", " tested")})`).join("; ")}. Finding nothing
-            does not show that nothing is there.
+            <b>Searched without a reportable result:</b>{" "}
+            {view.null_results
+              .map((n) => `${n.label} (${n.message.replace("Tested ", "").replace(" hypotheses; none held up after false-discovery control.", " tested")})`)
+              .join("; ")}
+            . Finding nothing does not show that nothing is there.
           </Notice>
         ) : null}
+
         {view.notes.length || view.warnings.length ? (
-          <details className="issue">
+          <details className="issue boxed">
             <summary>
               <span className="sev-dot sev-info" />
               <div className="grow">
@@ -619,11 +753,12 @@ export function RunPage() {
             </div>
           </details>
         ) : null}
+
         {view.feed.length ? (
           <InsightFeed items={view.feed} basePath={`/p/${project.id}/discover/runs/${run.id}`} />
         ) : (
           <div className="card">
-            <Empty icon="∅" title="No findings">
+            <Empty title="No findings">
               Nothing passed the checks. That is a result too: with this data and these settings, no pattern was strong enough to be
               reported without risking a false alarm.
             </Empty>

@@ -153,3 +153,63 @@ def test_state_changes_require_the_client_header(tmp_path: Path) -> None:
 def test_health_traffic_light(client: TestClient, body: bytes, status: str) -> None:
     ds = _upload(client, _project(client), "h.csv", body)["project"]["datasets"][0]
     assert ds["health"]["status"] == status, ds["health"]
+
+
+def test_interactive_explore_and_drill_down(client: TestClient) -> None:
+    pid = _project(client)
+    frame = pl.DataFrame(
+        {
+            "region": ["US", "US", "EU", "EU", "US", "EU"] * 10,
+            "channel": ["Web", "Store", "Web", "Store", "Web", "Web"] * 10,
+            "amount": [float(10 + i * 2) for i in range(60)],
+            "spend": [float(5 + i * 1.5) for i in range(60)],
+            "order_date": [f"2024-{(i % 6) + 1:02d}-{(i % 20) + 1:02d}" for i in range(60)],
+        }
+    )
+    did = _upload(client, pid, "sales.csv", frame.write_csv().encode())["project"]["datasets"][0][
+        "id"
+    ]
+    url = f"/api/projects/{pid}/datasets/{did}/explore"
+
+    # 1. Group breakdown + drill down into region = EU -> channel
+    grp = client.post(url, json={"mode": "group", "x": "region", "y": "amount"}).json()
+    assert grp["total_rows"] == 60
+    assert grp["matched_rows"] == 60
+    assert "channel" in grp["next_dimensions"]
+
+    drilled = client.post(
+        url,
+        json={
+            "mode": "group",
+            "x": "channel",
+            "y": "amount",
+            "filters": [{"column": "region", "op": "eq", "value": "EU"}],
+        },
+    ).json()
+    assert drilled["matched_rows"] == 30
+    assert len(drilled["data"]["rows"]) == 2
+
+    # 2. Time grain drill down (month -> day)
+    tm = client.post(
+        url, json={"mode": "time", "x": "order_date", "y": "amount", "time_grain": "month"}
+    ).json()
+    assert tm["grain_used"] == "month"
+    assert tm["next_grain"] == "week"
+    assert len(tm["data"]["points"]) == 6
+
+    # 3. Hierarchy (Sunburst/Treemap) + Scatter + Histogram + Heatmap
+    hier = client.post(
+        url, json={"mode": "hierarchy", "dimensions": ["region", "channel"], "y": "amount"}
+    ).json()
+    assert len(hier["data"]["tree"]) == 2
+
+    scat = client.post(
+        url, json={"mode": "scatter", "x": "spend", "y": "amount", "group": "region"}
+    ).json()
+    assert scat["summary"]["pearson_r"] > 0.99
+
+    hist = client.post(url, json={"mode": "histogram", "x": "amount", "bins": 10}).json()
+    assert len(hist["data"]["bins"]) == 10
+
+    heat = client.post(url, json={"mode": "heatmap", "x": "region", "y": "channel"}).json()
+    assert len(heat["data"]["cells"]) == 4

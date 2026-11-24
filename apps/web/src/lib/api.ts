@@ -89,6 +89,8 @@ export const api = {
   setRole: (id: string, datasetId: string, column: string, role: Role | null) =>
     patch<Dataset>(`${p(id)}/datasets/${datasetId}/columns`, { column, role }),
   profile: (id: string, datasetId: string) => get<DatasetProfile>(`${p(id)}/datasets/${datasetId}/profile`),
+  explore: (id: string, datasetId: string, query: import("./types").ExploreQuery) =>
+    post<import("./types").ExploreResponse>(`${p(id)}/datasets/${datasetId}/explore`, query),
   suggestions: (id: string) => get<LinkSuggestion[]>(`${p(id)}/links/suggestions`),
   previewLink: (id: string, spec: LinkSpec) => post<LinkPreview>(`${p(id)}/links/preview`, spec),
   confirmLink: (id: string, spec: LinkSpec, acknowledged: boolean) =>
