@@ -149,15 +149,6 @@ This creates US customers (`$`), EU customers (`¢`), and multi-year orders with
 
 ---
 
-## See your data as a map
-
-<p align="center">
-  <img src="universe.gif" alt="The Data Universe view in EDAForge" width="92%">
-</p>
-
-<p align="center">
-  <sub>The <b>Data Universe</b> shows your columns and how they relate. Click a connection to see the finding, its chart, and an explanation.</sub>
-</p>
 
 <table>
 <tr>
