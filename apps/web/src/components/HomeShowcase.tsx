@@ -1,11 +1,141 @@
 import { useRef, useState } from "react";
+import { BarChart, ScatterChart, useXScale, useYScale } from "@mui/x-charts";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { CheckCircle2, Database, GitMerge, Scale, ShieldCheck } from "lucide-react";
 import { playDetent, playTick } from "../lib/sound";
 
-const US_BINS = [8, 22, 48, 76, 62, 34, 14, 4, 1, 0, 0, 0];
-const EU_RAW_BINS = [0, 0, 0, 0, 0, 2, 11, 36, 68, 54, 24, 9];
-const ALIGNED_BINS = [9, 26, 58, 94, 82, 46, 20, 7, 2, 0, 0, 0];
+const BIN_LABELS = [
+  "$200",
+  "$400",
+  "$600",
+  "$800",
+  "$1.0k",
+  "$1.2k",
+  "20k¢",
+  "40k¢",
+  "60k¢",
+  "80k¢",
+  "100k¢",
+  "120k¢",
+];
+const US_BINS = [12, 34, 68, 84, 52, 22, 0, 0, 0, 0, 0, 0];
+const EU_RAW_BINS = [0, 0, 0, 0, 0, 0, 10, 29, 61, 76, 44, 18];
+const EU_ALIGNED_BINS = [10, 29, 61, 76, 44, 18, 0, 0, 0, 0, 0, 0];
+
+const PARADOX_REGIONS = [
+  {
+    id: "north",
+    label: "North",
+    color: "#5EEAD4",
+    pts: [
+      { id: "n1", x: 2.2, y: 4.8 },
+      { id: "n2", x: 3.4, y: 4.3 },
+      { id: "n3", x: 4.6, y: 3.9 },
+      { id: "n4", x: 5.5, y: 3.5 },
+    ],
+    line: [
+      [1.8, 5.0],
+      [5.9, 3.3],
+    ] as const,
+  },
+  {
+    id: "south",
+    label: "South",
+    color: "#38BDF8",
+    pts: [
+      { id: "s1", x: 6.2, y: 6.4 },
+      { id: "s2", x: 7.4, y: 5.9 },
+      { id: "s3", x: 8.6, y: 5.5 },
+      { id: "s4", x: 9.6, y: 5.1 },
+    ],
+    line: [
+      [5.8, 6.6],
+      [10.0, 4.9],
+    ] as const,
+  },
+  {
+    id: "east",
+    label: "East",
+    color: "#FBBF24",
+    pts: [
+      { id: "e1", x: 10.4, y: 8.0 },
+      { id: "e2", x: 11.6, y: 7.5 },
+      { id: "e3", x: 12.8, y: 7.0 },
+      { id: "e4", x: 13.8, y: 6.6 },
+    ],
+    line: [
+      [10.0, 8.2],
+      [14.2, 6.4],
+    ] as const,
+  },
+  {
+    id: "west",
+    label: "West",
+    color: "#FB7185",
+    pts: [
+      { id: "w1", x: 14.6, y: 9.6 },
+      { id: "w2", x: 15.8, y: 9.1 },
+      { id: "w3", x: 17.0, y: 8.6 },
+      { id: "w4", x: 18.2, y: 8.1 },
+    ],
+    line: [
+      [14.2, 9.8],
+      [18.6, 7.9],
+    ] as const,
+  },
+];
+
+function ParadoxRegressionLayer({ splitByRegion }: { splitByRegion: boolean }) {
+  const xScale = useXScale<"linear">();
+  const yScale = useYScale<"linear">();
+  if (!xScale || !yScale) return null;
+
+  if (splitByRegion) {
+    return (
+      <g pointerEvents="none">
+        {PARADOX_REGIONS.map((rg) => {
+          const x1 = xScale(rg.line[0][0]);
+          const y1 = yScale(rg.line[0][1]);
+          const x2 = xScale(rg.line[1][0]);
+          const y2 = yScale(rg.line[1][1]);
+          if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) return null;
+          return (
+            <line
+              key={rg.id}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke={rg.color}
+              strokeWidth={2.6}
+              strokeLinecap="round"
+            />
+          );
+        })}
+      </g>
+    );
+  }
+
+  const x1 = xScale(2.0);
+  const y1 = yScale(3.9);
+  const x2 = xScale(18.4);
+  const y2 = yScale(9.1);
+  if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) return null;
+
+  return (
+    <line
+      pointerEvents="none"
+      x1={x1}
+      y1={y1}
+      x2={x2}
+      y2={y2}
+      stroke="#FBBF24"
+      strokeWidth={3}
+      strokeDasharray="7 5"
+      strokeLinecap="round"
+    />
+  );
+}
 
 const FORMATS = [
   { ext: ".csv / .tsv", desc: "Auto-delimiter, encoding & messy-date repair" },
@@ -55,7 +185,7 @@ export function HomeShowcase({ onTryDemo, demoBusy }: { onTryDemo: () => void; d
       </div>
 
       <div className="showcase-bento-grid">
-        {/* TILE 1: Sankey Ribbon Join Contract (RefUI #1 bottom-right ribbon flow widget!) */}
+        {/* TILE 1: Sankey Ribbon Join Contract */}
         <motion.article style={{ y: yFloatSlow }} className="bento-tile showcase-span-7 bento-surface-card">
           <div className="spread" style={{ marginBottom: 10, flexWrap: "wrap" }}>
             <div className="row" style={{ gap: 10 }}>
@@ -159,9 +289,9 @@ export function HomeShowcase({ onTryDemo, demoBusy }: { onTryDemo: () => void; d
           </div>
         </motion.article>
 
-        {/* TILE 2: Unit Mismatch Rescale Bento */}
+        {/* TILE 2: Interactive MUI X BarChart Unit Mismatch Guard */}
         <motion.article style={{ y: yFloatFast }} className="bento-tile showcase-span-5 bento-coral">
-          <div className="spread" style={{ marginBottom: 10, flexWrap: "wrap" }}>
+          <div className="spread" style={{ marginBottom: 8, flexWrap: "wrap" }}>
             <div className="row" style={{ gap: 9 }}>
               <span className="bento-icon-circle on-tinted">
                 <Scale size={16} />
@@ -182,43 +312,55 @@ export function HomeShowcase({ onTryDemo, demoBusy }: { onTryDemo: () => void; d
 
           <p className="bento-body-copy">
             {unitAligned
-              ? "Sample medians aligned ($753 US vs $757 EU sample). Stacking now preserves true lifetime_value scale."
-              : "Sample EU export stores lifetime_value in cents (75,700) while US sample stores dollars ($753 sample)."}
+              ? "Medians aligned ($753 US vs $757 EU). Stacking now preserves true lifetime_value scale."
+              : "EU export stores lifetime_value in cents (75,700¢) while US stores dollars ($753)."}
           </p>
 
-          <div className="unit-bars-stage" aria-label="Unit distribution comparison">
-            {(unitAligned ? ALIGNED_BINS : US_BINS).map((v, idx) => {
-              const euVal = unitAligned ? 0 : EU_RAW_BINS[idx];
-              return (
-                <div key={idx} className="unit-bar-col">
-                  <motion.div
-                    className="unit-bar-us"
-                    initial={false}
-                    animate={{ height: `${Math.max(4, v * 0.92)}%` }}
-                    transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 24 }}
-                  />
-                  {!unitAligned && euVal > 0 ? (
-                    <motion.div
-                      className="unit-bar-eu"
-                      initial={{ height: 0 }}
-                      animate={{ height: `${Math.max(4, euVal * 0.92)}%` }}
-                      transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 24 }}
-                    />
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="spread small" style={{ marginTop: 8, opacity: 0.86, flexWrap: "wrap" }}>
-            <span className="tabular-nums">Sample range: 150–1,400 USD</span>
-            <span className="tabular-nums">{unitAligned ? "Unified scale" : "15,000–140,000 cents"}</span>
+          <div style={{ margin: "2px -8px -6px" }}>
+            <BarChart
+              height={148}
+              borderRadius={5}
+              slotProps={{
+                legend: { toggleVisibilityOnClick: true },
+              }}
+              margin={{ top: 4, right: 10, bottom: 24, left: 10 }}
+              xAxis={[
+                {
+                  scaleType: "band",
+                  data: unitAligned ? BIN_LABELS.slice(0, 6) : BIN_LABELS,
+                  disableLine: true,
+                  disableTicks: true,
+                  height: 22,
+                  categoryGapRatio: 0.24,
+                  tickLabelStyle: { fontSize: 12, fill: "currentColor", opacity: 0.8 },
+                },
+              ]}
+              yAxis={[{ disableLine: true, disableTicks: true, width: 0 }]}
+              series={[
+                {
+                  id: "us-usd",
+                  label: "US ($)",
+                  color: "#156570",
+                  data: unitAligned ? US_BINS.slice(0, 6) : US_BINS,
+                  highlightScope: { highlight: "series", fade: "global" },
+                  valueFormatter: (v) => `${v} rows`,
+                },
+                {
+                  id: "eu-scale",
+                  label: unitAligned ? "EU (rescaled $)" : "EU (raw ¢)",
+                  color: "#C84B31",
+                  data: unitAligned ? EU_ALIGNED_BINS.slice(0, 6) : EU_RAW_BINS,
+                  highlightScope: { highlight: "series", fade: "global" },
+                  valueFormatter: (v) => `${v} rows`,
+                },
+              ]}
+            />
           </div>
         </motion.article>
 
-        {/* TILE 3: Deep Petrol Feature Tile — Simpson's Paradox & Sealed Holdout */}
+        {/* TILE 3: Deep Petrol Feature Tile — Live MUI X ScatterChart Simpson's Paradox */}
         <motion.article style={{ y: yFloatSlow }} className="bento-tile showcase-span-6 bento-petrol">
-          <div className="spread" style={{ marginBottom: 10, flexWrap: "wrap" }}>
+          <div className="spread" style={{ marginBottom: 8, flexWrap: "wrap" }}>
             <div className="row" style={{ gap: 9 }}>
               <span className="bento-icon-circle on-dark">
                 <ShieldCheck size={16} />
@@ -242,37 +384,75 @@ export function HomeShowcase({ onTryDemo, demoBusy }: { onTryDemo: () => void; d
           </div>
 
           <div className="paradox-stage">
-            <svg viewBox="0 0 420 144" className="paradox-svg" role="img" aria-label="Simpson's paradox slope reversal">
-              {splitByRegion ? (
-                <>
-                  <motion.line initial={{ opacity: 0.3 }} animate={{ opacity: 1 }} x1="34" y1="98" x2="118" y2="124" stroke="#5EEAD4" strokeWidth="3" strokeLinecap="round" />
-                  <motion.line initial={{ opacity: 0.3 }} animate={{ opacity: 1 }} x1="118" y1="74" x2="206" y2="102" stroke="#4CC9F0" strokeWidth="3" strokeLinecap="round" />
-                  <motion.line initial={{ opacity: 0.3 }} animate={{ opacity: 1 }} x1="204" y1="48" x2="296" y2="78" stroke="#FBBF24" strokeWidth="3" strokeLinecap="round" />
-                  <motion.line initial={{ opacity: 0.3 }} animate={{ opacity: 1 }} x1="292" y1="22" x2="388" y2="54" stroke="#FB7185" strokeWidth="3" strokeLinecap="round" />
-                </>
-              ) : (
-                <motion.line
-                  initial={{ opacity: 0.3 }}
-                  animate={{ opacity: 1 }}
-                  x1="36"
-                  y1="118"
-                  x2="386"
-                  y2="30"
-                  stroke="#FBBF24"
-                  strokeWidth="3.5"
-                  strokeDasharray="7 5"
-                  strokeLinecap="round"
-                />
-              )}
-              {[
-                [52, 102, "#5EEAD4"], [78, 112, "#5EEAD4"], [104, 120, "#5EEAD4"],
-                [136, 79, "#4CC9F0"], [166, 89, "#4CC9F0"], [192, 97, "#4CC9F0"],
-                [222, 54, "#FBBF24"], [252, 63, "#FBBF24"], [280, 73, "#FBBF24"],
-                [310, 28, "#FB7185"], [342, 39, "#FB7185"], [372, 49, "#FB7185"],
-              ].map(([cx, cy, fill], idx) => (
-                <circle key={idx} cx={Number(cx)} cy={Number(cy)} r="4.5" fill={String(fill)} opacity="0.92" />
-              ))}
-            </svg>
+            <div style={{ margin: "-4px -8px" }}>
+              <ScatterChart
+                height={158}
+                hideLegend={!splitByRegion}
+                slotProps={{
+                  legend: { toggleVisibilityOnClick: true },
+                }}
+                grid={{ horizontal: true }}
+                margin={{ top: 6, right: 12, bottom: 22, left: 6 }}
+                xAxis={[
+                  {
+                    min: 1,
+                    max: 19.5,
+                    disableLine: true,
+                    disableTicks: true,
+                    height: 22,
+                    tickLabelStyle: { fontSize: 12, fill: "rgba(243,249,250,0.72)" },
+                  },
+                ]}
+                yAxis={[
+                  {
+                    min: 2.8,
+                    max: 10.4,
+                    disableLine: true,
+                    disableTicks: true,
+                    width: 28,
+                    tickLabelStyle: { fontSize: 12, fill: "rgba(243,249,250,0.72)" },
+                  },
+                ]}
+                series={
+                  splitByRegion
+                    ? PARADOX_REGIONS.map((rg) => ({
+                        id: rg.id,
+                        label: rg.label,
+                        color: rg.color,
+                        markerSize: 5.2,
+                        data: rg.pts,
+                        highlightScope: { highlight: "series" as const, fade: "global" as const },
+                        valueFormatter: (pt: { x: number; y: number } | null) =>
+                          pt ? `(${pt.x}, ${pt.y})` : "",
+                      }))
+                    : [
+                        {
+                          id: "pooled",
+                          label: "All rows",
+                          color: "#93C5FD",
+                          markerSize: 5.2,
+                          data: PARADOX_REGIONS.flatMap((rg) => rg.pts),
+                          highlightScope: { highlight: "item" as const, fade: "global" as const },
+                          valueFormatter: (pt: { x: number; y: number } | null) =>
+                            pt ? `(${pt.x}, ${pt.y})` : "",
+                        },
+                      ]
+                }
+                sx={{
+                  "& .MuiChartsGrid-line": {
+                    stroke: "rgba(255,255,255,0.12)",
+                    strokeDasharray: "3 4",
+                  },
+                  "& .MuiChartsLegend-label": {
+                    color: "#F3F9FA !important",
+                    fill: "#F3F9FA !important",
+                    fontSize: 12,
+                  },
+                }}
+              >
+                <ParadoxRegressionLayer splitByRegion={splitByRegion} />
+              </ScatterChart>
+            </div>
 
             <div className="paradox-readout">
               <div>
@@ -286,7 +466,7 @@ export function HomeShowcase({ onTryDemo, demoBusy }: { onTryDemo: () => void; d
           </div>
         </motion.article>
 
-        {/* TILE 4: Typographic Format Specification Ledger (No nested cards, no inert icon) */}
+        {/* TILE 4: Typographic Format Specification Ledger */}
         <motion.article style={{ y: yFloatFast }} className="bento-tile showcase-span-6 bento-sage">
           <div className="row" style={{ gap: 10, marginBottom: 12 }}>
             <span className="bento-icon-circle on-tinted">

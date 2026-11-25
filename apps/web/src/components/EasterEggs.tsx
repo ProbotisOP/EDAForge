@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
+import { ScatterChart, useXScale, useYScale } from "@mui/x-charts";
 import { motion, useReducedMotion, useScroll, useSpring } from "motion/react";
 import { Eye, EyeOff, FlaskConical, Keyboard, Sparkles, X } from "lucide-react";
 import { playConfirm, playDetent, playTick } from "../lib/sound";
@@ -101,7 +102,7 @@ export function ScrollVernier() {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Anscombe's Quartet & Paradox Secret Lab (Easter Egg #1)
+// 2. Anscombe's Quartet & Paradox Secret Lab (MUI X ScatterChart + OLS Line)
 // ---------------------------------------------------------------------------
 type DatasetId = "I" | "II" | "III" | "IV" | "RING";
 
@@ -206,6 +207,30 @@ const QUARTET: Record<
   },
 };
 
+function AnscombeOlsLayer({ color }: { color: string }) {
+  const xScale = useXScale<"linear">();
+  const yScale = useYScale<"linear">();
+  if (!xScale || !yScale) return null;
+  const x1 = xScale(3.5);
+  const y1 = yScale(3 + 0.5 * 3.5);
+  const x2 = xScale(19.5);
+  const y2 = yScale(3 + 0.5 * 19.5);
+  if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) return null;
+  return (
+    <line
+      pointerEvents="none"
+      x1={x1}
+      y1={y1}
+      x2={x2}
+      y2={y2}
+      stroke={color}
+      strokeWidth={2.5}
+      strokeDasharray="6 4"
+      opacity={0.85}
+    />
+  );
+}
+
 export function AnscombeModal({
   open,
   onClose,
@@ -215,7 +240,7 @@ export function AnscombeModal({
 }) {
   const [active, setActive] = useState<DatasetId>("I");
   const [autoCycle, setAutoCycle] = useState(false);
-  const reduce = useReducedMotion();
+  const { tokens } = useTheme();
 
   useEffect(() => {
     if (!open || !autoCycle) return;
@@ -227,8 +252,6 @@ export function AnscombeModal({
   }, [open, autoCycle]);
 
   const current = QUARTET[active];
-  const mapX = (x: number) => 42 + ((x - 3) / 17) * 356;
-  const mapY = (y: number) => 206 - ((y - 2) / 12) * 176;
 
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
@@ -305,51 +328,55 @@ export function AnscombeModal({
           </div>
 
           <div className="anscombe-stage">
-            <svg viewBox="0 0 420 232" className="anscombe-svg" role="img" aria-label={current.name}>
-              {[4, 8, 12, 16, 20].map((gx) => (
-                <g key={`gx-${gx}`}>
-                  <line x1={mapX(gx)} y1={24} x2={mapX(gx)} y2={206} stroke="var(--line)" strokeDasharray="3 3" />
-                  <text x={mapX(gx)} y={224} textAnchor="middle" fill="var(--muted)" fontSize="12">
-                    {gx}
-                  </text>
-                </g>
-              ))}
-              {[4, 8, 12].map((gy) => (
-                <g key={`gy-${gy}`}>
-                  <line x1={42} y1={mapY(gy)} x2={402} y2={mapY(gy)} stroke="var(--line)" strokeDasharray="3 3" />
-                  <text x={32} y={mapY(gy) + 4} textAnchor="end" fill="var(--muted)" fontSize="12">
-                    {gy}
-                  </text>
-                </g>
-              ))}
-              {/* Identical OLS regression line across all sets: y = 3 + 0.5x */}
-              <line
-                x1={mapX(3.5)}
-                y1={mapY(3 + 0.5 * 3.5)}
-                x2={mapX(19.5)}
-                y2={mapY(3 + 0.5 * 19.5)}
-                stroke="var(--brand)"
-                strokeWidth="2"
-                strokeDasharray="6 4"
-                opacity="0.7"
-              />
-              {current.points.map(([px, py], idx) => (
-                <motion.circle
-                  key={idx}
-                  initial={false}
-                  animate={{ cx: mapX(px), cy: mapY(py) }}
-                  transition={
-                    reduce
-                      ? { duration: 0 }
-                      : { type: "spring", stiffness: 220, damping: 24, mass: 0.7 }
-                  }
-                  r={6.2}
-                  fill="var(--coral-accent)"
-                  stroke="var(--surface)"
-                  strokeWidth={2}
-                />
-              ))}
-            </svg>
+            <ScatterChart
+              height={244}
+              grid={{ horizontal: true, vertical: true }}
+              margin={{ top: 10, right: 20, bottom: 28, left: 8 }}
+              xAxis={[
+                {
+                  min: 3,
+                  max: 20,
+                  disableLine: true,
+                  disableTicks: true,
+                  height: 26,
+                  tickLabelStyle: { fontSize: 12, fill: tokens.axisLabel },
+                },
+              ]}
+              yAxis={[
+                {
+                  min: 2,
+                  max: 14,
+                  disableLine: true,
+                  disableTicks: true,
+                  width: 36,
+                  tickLabelStyle: { fontSize: 12, fill: tokens.axisLabel },
+                },
+              ]}
+              series={[
+                {
+                  id: "anscombe-pts",
+                  label: current.name,
+                  color: tokens.secondary,
+                  markerSize: 7,
+                  highlightScope: { highlight: "item", fade: "global" },
+                  data: current.points.map(([px, py], idx) => ({
+                    id: idx,
+                    x: px,
+                    y: py,
+                  })),
+                  valueFormatter: (pt) =>
+                    pt ? `x = ${pt.x.toFixed(2)}, y = ${pt.y.toFixed(2)}` : "",
+                },
+              ]}
+              sx={{
+                "& .MuiChartsGrid-line": {
+                  stroke: tokens.splitLine,
+                  strokeDasharray: "3 4",
+                },
+              }}
+            >
+              <AnscombeOlsLayer color={tokens.primary} />
+            </ScatterChart>
           </div>
 
           <div className="anscombe-caption">
@@ -511,7 +538,7 @@ export function PeekingCompanion({
         aria-label="Loupe, statistical studio companion — click for a statistical note"
       >
         <svg ref={svgRef} width="46" height="36" viewBox="0 0 46 36" fill="none" aria-hidden="true">
-          {/* Beanie / Inspector Cap (RefUI 1 nod!) */}
+          {/* Beanie / Inspector Cap */}
           <path
             d="M11 16C11 8.8 16.4 4 23 4C29.6 4 35 8.8 35 16H11Z"
             fill={konamiUnlocked ? "#D97706" : "#C84B31"}

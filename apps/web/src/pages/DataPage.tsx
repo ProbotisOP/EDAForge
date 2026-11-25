@@ -404,7 +404,13 @@ function DatasetView({
         </div>
       </div>
 
-      {tab === "quality" ? <QualityPanel projectId={project.id} dataset={dataset} /> : null}
+      {tab === "quality" ? (
+        <QualityPanel
+          projectId={project.id}
+          dataset={dataset}
+          onExploreColumn={onExploreColumn}
+        />
+      ) : null}
       {tab === "explore" ? (
         <ExploreStudio key={`${dataset.id}:${exploreCol ?? ""}`} projectId={project.id} dataset={dataset} initialX={exploreCol} />
       ) : null}

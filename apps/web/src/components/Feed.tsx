@@ -65,7 +65,7 @@ export function FindingCard({ item, onOpen }: { item: FeedItem; onOpen: () => vo
               }}
               style={{ cursor: "pointer" }}
             >
-              <Chart chart={item.chart} height={158} compact />
+              <Chart chart={item.chart} height={176} compact />
             </div>
           </div>
         ) : item.summary ? (

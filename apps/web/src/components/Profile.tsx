@@ -1,7 +1,24 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import {
+  BarChart,
+  pieClasses,
+  PieChart,
+  radarClasses,
+  RadarChart,
+  SparkLineChart,
+} from "@mui/x-charts";
 import { api } from "../lib/api";
 import { fmtInt, fmtNum, fmtPct, ROLE_LABEL } from "../lib/format";
-import type { ColumnInfo, ColumnProfile, Dataset, DatasetProfile, HistogramBin, QualityIssue, Role } from "../lib/types";
+import { useTheme } from "../lib/theme";
+import type {
+  ColumnInfo,
+  ColumnProfile,
+  Dataset,
+  DatasetProfile,
+  HistogramBin,
+  QualityIssue,
+  Role,
+} from "../lib/types";
 import { RoleSelect } from "../pages/DataPage";
 import { HealthGauge } from "./kit";
 import { Badge, ErrorBox, Loading } from "./ui";
@@ -26,23 +43,80 @@ function healthStroke(score: number): string {
   return "var(--bad)";
 }
 
-export function Sparkline({ bins, width = 120, height = 28 }: { bins: HistogramBin[]; width?: number; height?: number }) {
+export function Sparkline({
+  bins,
+  width = 128,
+  height = 32,
+}: {
+  bins: HistogramBin[];
+  width?: number;
+  height?: number;
+}) {
+  const { tokens } = useTheme();
+  const gradId = useId().replace(/:/g, "");
   if (!bins.length) return null;
-  const max = Math.max(...bins.map((b) => b.count), 1);
-  const w = width / bins.length;
+
+  const isContinuous = bins.length >= 6 && typeof bins[0].x0 === "number";
+  const labels = bins.map(
+    (b) =>
+      `${typeof b.x0 === "number" ? fmtNum(b.x0) : String(b.x0).slice(0, 10)} – ${
+        typeof b.x1 === "number" ? fmtNum(b.x1) : String(b.x1).slice(0, 10)
+      }`,
+  );
+
   return (
-    <svg className="spark" width={width} height={height} role="img" aria-label="distribution">
-      {bins.map((b, i) => {
-        const h = b.count ? Math.max(1.5, (b.count / max) * (height - 2)) : 0;
-        return (
-          <rect key={i} x={i * w + 0.5} y={height - h} width={Math.max(1, w - 1)} height={h} rx={1.5} fill="var(--brand)">
-            <title>{`${typeof b.x0 === "number" ? fmtNum(b.x0) : String(b.x0).slice(0, 10)} – ${
-              typeof b.x1 === "number" ? fmtNum(b.x1) : String(b.x1).slice(0, 10)
-            }: ${fmtInt(b.count)}`}</title>
-          </rect>
-        );
-      })}
-    </svg>
+    <div className="spark" style={{ width, height }} aria-label="distribution">
+      {isContinuous ? (
+        <SparkLineChart
+          plotType="line"
+          area
+          curve="catmullRom"
+          width={width}
+          height={height}
+          margin={{ top: 3, bottom: 2, left: 2, right: 2 }}
+          data={bins.map((b) => b.count)}
+          color={tokens.primary}
+          showTooltip
+          showHighlight
+          xAxis={{
+            scaleType: "point",
+            data: labels,
+          }}
+          valueFormatter={(v) => (v === null ? "" : `${fmtInt(v)} rows`)}
+          sx={{
+            "& .MuiAreaElement-root": {
+              fill: `url(#spark-grad-${gradId})`,
+            },
+            "& .MuiLineElement-root": {
+              strokeWidth: 2,
+            },
+          }}
+        >
+          <defs>
+            <linearGradient id={`spark-grad-${gradId}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={tokens.primary} stopOpacity={0.42} />
+              <stop offset="100%" stopColor={tokens.primary} stopOpacity={0.04} />
+            </linearGradient>
+          </defs>
+        </SparkLineChart>
+      ) : (
+        <SparkLineChart
+          plotType="bar"
+          width={width}
+          height={height}
+          margin={{ top: 2, bottom: 2, left: 1, right: 1 }}
+          data={bins.map((b) => b.count)}
+          color={tokens.primary}
+          showTooltip
+          showHighlight
+          xAxis={{
+            scaleType: "band",
+            data: labels,
+          }}
+          valueFormatter={(v) => (v === null ? "" : `${fmtInt(v)} rows`)}
+        />
+      )}
+    </div>
   );
 }
 
@@ -55,7 +129,15 @@ function TopBars({ values, n }: { values: { value: string; count: number }[]; n:
           <span className="bar" style={{ width: 54 }}>
             <span style={{ width: `${(100 * v.count) / Math.max(n, 1)}%`, background: "var(--brand)" }} />
           </span>
-          <span style={{ maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={v.value}>
+          <span
+            style={{
+              maxWidth: 140,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={v.value}
+          >
             {v.value}
           </span>
           <span className="faint tabular-nums">{fmtPct(v.count / Math.max(n, 1), 0)}</span>
@@ -78,9 +160,13 @@ export function IssueItem({ issue }: { issue: QualityIssue }) {
             <Badge tone={SEVERITY_TONE[issue.severity]}>{issue.severity}</Badge>
             <span className="muted small">{issue.category}</span>
           </div>
-          <div className="muted small" style={{ marginTop: 2 }}>{issue.detail}</div>
+          <div className="muted small" style={{ marginTop: 2 }}>
+            {issue.detail}
+          </div>
         </div>
-        {issue.count ? <span className="muted small nowrap tabular-nums">{fmtInt(issue.count)}</span> : null}
+        {issue.count ? (
+          <span className="muted small nowrap tabular-nums">{fmtInt(issue.count)}</span>
+        ) : null}
       </summary>
       <div className="body">
         <div>
@@ -112,11 +198,59 @@ export function IssueItem({ issue }: { issue: QualityIssue }) {
   );
 }
 
-export function QualityPanel({ projectId, dataset }: { projectId: string; dataset: Dataset }) {
+export function QualityPanel({
+  projectId,
+  dataset,
+  onExploreColumn,
+}: {
+  projectId: string;
+  dataset: Dataset;
+  onExploreColumn?: (col: string) => void;
+}) {
+  const { tokens } = useTheme();
   const { profile, error, reload } = useProfile(projectId, dataset);
   const [showMethod, setShowMethod] = useState(false);
+
+  const radarData = useMemo(() => {
+    if (!profile) return null;
+    const comps = profile.health.components;
+    if (comps.length < 3) return null;
+    return {
+      metrics: comps.map((c) => ({
+        name: c.category[0].toUpperCase() + c.category.slice(1),
+        min: 0,
+        max: 100,
+      })),
+      scores: comps.map((c) =>
+        Math.round(Math.max(0, Math.min(100, 100 * (1 - c.penalty / Math.max(c.cap, 1))))),
+      ),
+    };
+  }, [profile]);
+
+  const roleSlices = useMemo(() => {
+    if (!profile) return [];
+    return Object.entries(profile.roles)
+      .filter(([, n]) => n > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([role, n], idx) => ({
+        id: role,
+        label: ROLE_LABEL[role] ?? role,
+        value: n,
+        color: tokens.palette[idx % tokens.palette.length],
+      }));
+  }, [profile, tokens.palette]);
+
+  const colBars = useMemo(() => {
+    if (!profile) return [];
+    const sorted = [...profile.columns]
+      .sort((a, b) => b.missing_share - a.missing_share || b.distinct_share - a.distinct_share)
+      .slice(0, 7);
+    return sorted;
+  }, [profile]);
+
   if (error) return <ErrorBox error={error} onRetry={reload} />;
   if (!profile) return <Loading label="Profiling columns…" />;
+
   const stroke = healthStroke(profile.health.score);
   const missingCells = profile.columns.reduce((s, c) => s + c.n_missing, 0);
   const missingPct = (100 * missingCells) / Math.max(1, profile.n_rows * profile.n_cols);
@@ -124,11 +258,15 @@ export function QualityPanel({ projectId, dataset }: { projectId: string; datase
   for (const i of profile.issues) counts[i.severity] += 1;
 
   const healthTileTone =
-    profile.health.score >= 85 ? "bento-sage" : profile.health.score >= 60 ? "bento-sand" : "bento-coral";
+    profile.health.score >= 85
+      ? "bento-sage"
+      : profile.health.score >= 60
+        ? "bento-sand"
+        : "bento-coral";
 
   return (
     <div className="stack" style={{ gap: 16 }}>
-      {/* Multi-Tonal Bento KPI Grid (RefUI #4 & #5 signature modular tiles!) */}
+      {/* Multi-Tonal Bento KPI Grid */}
       <div className="bento-kpi-row">
         <div className={`bento-tile bento-kpi-wide ${healthTileTone}`}>
           <div className="row" style={{ gap: 14 }}>
@@ -178,6 +316,184 @@ export function QualityPanel({ projectId, dataset }: { projectId: string; datase
         </div>
       </div>
 
+      {/* MUI X Charts v9 Telemetry Trio: RadarChart + Donut PieChart + Stacked/Grouped BarChart */}
+      <div className="mui-telemetry-trio">
+        {radarData ? (
+          <div className="bento-tile bento-surface-card mui-mini-chart-card">
+            <div className="mui-mini-chart-head">
+              <h3>Health dimensions</h3>
+              <span className="small muted">Component score profile (0–100)</span>
+            </div>
+            <RadarChart
+              height={224}
+              shape="circular"
+              divisions={4}
+              stripeColor={(idx) =>
+                idx % 2 === 1
+                  ? tokens.isDark
+                    ? "rgba(56, 189, 248, 0.05)"
+                    : "rgba(21, 101, 112, 0.045)"
+                  : "none"
+              }
+              hideLegend
+              margin={{ top: 20, right: 64, bottom: 20, left: 64 }}
+              radar={{
+                max: 100,
+                labelGap: 8,
+                metrics: radarData.metrics,
+              }}
+              series={[
+                {
+                  id: "health-radar",
+                  label: "Dimension score",
+                  data: radarData.scores,
+                  color: tokens.positive,
+                  fillArea: true,
+                  valueFormatter: (v) => `${v}/100`,
+                },
+              ]}
+              sx={{
+                [`& .${radarClasses.axisLabel}`]: {
+                  fill: tokens.text,
+                  fontSize: 12,
+                  fontWeight: 600,
+                },
+                [`& .${radarClasses.gridDivider}, & .${radarClasses.gridRadial}`]: {
+                  stroke: tokens.splitLine,
+                },
+                [`& .${radarClasses.seriesArea}`]: {
+                  fillOpacity: 0.28,
+                  strokeWidth: 2.3,
+                },
+              }}
+            />
+          </div>
+        ) : null}
+
+        {roleSlices.length > 0 ? (
+          <div className="bento-tile bento-surface-card mui-mini-chart-card">
+            <div className="mui-mini-chart-head">
+              <h3>Schema role mix</h3>
+              <span className="small muted">Hover slices or click legend to filter</span>
+            </div>
+            <PieChart
+              height={224}
+              slotProps={{
+                legend: {
+                  toggleVisibilityOnClick: true,
+                },
+              }}
+              margin={{ top: 8, right: 10, bottom: 8, left: 10 }}
+              series={[
+                {
+                  id: "role-donut",
+                  innerRadius: "52%",
+                  outerRadius: "86%",
+                  paddingAngle: 3,
+                  cornerRadius: 6,
+                  highlightScope: { highlight: "item", fade: "global" },
+                  highlighted: { additionalRadius: 5 },
+                  faded: { innerRadius: 30, additionalRadius: -4, color: tokens.axisLine },
+                  arcLabel: (item) => (item.value >= 2 ? `${item.value}` : ""),
+                  arcLabelMinAngle: 28,
+                  data: roleSlices,
+                  valueFormatter: (item) =>
+                    `${item.value} column${item.value === 1 ? "" : "s"} (${Math.round((item.value / Math.max(1, profile.n_cols)) * 100)}%)`,
+                },
+              ]}
+              sx={{
+                [`& .${pieClasses.arcLabel}`]: {
+                  fill: "#FFFFFF",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  fontFamily: "var(--mono)",
+                },
+              }}
+            />
+          </div>
+        ) : null}
+
+        {colBars.length > 0 ? (
+          <div className="bento-tile bento-surface-card mui-mini-chart-card">
+            <div className="mui-mini-chart-head">
+              <h3>Completeness &amp; cardinality</h3>
+              <span className="small muted">
+                {onExploreColumn ? "Click any bar to drill into column" : "Filled vs distinct share"}
+              </span>
+            </div>
+            <BarChart
+              height={224}
+              layout="horizontal"
+              borderRadius={5}
+              grid={{ vertical: true }}
+              slotProps={{
+                legend: {
+                  toggleVisibilityOnClick: true,
+                },
+              }}
+              margin={{ top: 6, right: 16, bottom: 24, left: 6 }}
+              xAxis={[
+                {
+                  scaleType: "linear",
+                  min: 0,
+                  max: 100,
+                  disableLine: true,
+                  disableTicks: true,
+                  height: 24,
+                  tickLabelStyle: { fontSize: 12, fill: tokens.axisLabel },
+                  valueFormatter: (v: number) => `${Math.round(v)}%`,
+                },
+              ]}
+              yAxis={[
+                {
+                  scaleType: "band",
+                  data: colBars.map((c) => c.name),
+                  width: 104,
+                  disableLine: true,
+                  disableTicks: true,
+                  categoryGapRatio: 0.28,
+                  tickLabelStyle: { fontSize: 12, fill: tokens.text, fontWeight: 500 },
+                  valueFormatter: (v: string, ctx) =>
+                    ctx.location === "tick" && v.length > 13 ? `${v.slice(0, 12)}…` : v,
+                },
+              ]}
+              series={[
+                {
+                  id: "present-pct",
+                  label: "Filled %",
+                  color: tokens.primary,
+                  data: colBars.map((c) => Number(((1 - c.missing_share) * 100).toFixed(1))),
+                  highlightScope: { highlight: "series", fade: "global" },
+                  valueFormatter: (v) => `${v}% present`,
+                },
+                {
+                  id: "distinct-pct",
+                  label: "Distinct %",
+                  color: tokens.secondary,
+                  data: colBars.map((c) => Number((c.distinct_share * 100).toFixed(1))),
+                  highlightScope: { highlight: "series", fade: "global" },
+                  valueFormatter: (v) => `${v}% unique`,
+                },
+              ]}
+              onItemClick={(_ev, item) => {
+                const col = colBars[item.dataIndex];
+                const dsCol = dataset.columns.find((x) => x.name === col?.name);
+                if (col && !dsCol?.pii && onExploreColumn) {
+                  onExploreColumn(col.name);
+                }
+              }}
+              sx={{
+                "& .MuiChartsGrid-line": {
+                  stroke: tokens.splitLine,
+                  strokeDasharray: "3 4",
+                },
+                cursor: onExploreColumn ? "pointer" : "default",
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
+
       {showMethod ? (
         <div className="card card-pad">
           <p className="muted">{profile.health.method}</p>
@@ -221,7 +537,9 @@ export function QualityPanel({ projectId, dataset }: { projectId: string; datase
         </div>
         {profile.issues.length === 0 ? (
           <div className="card-pad">
-            <div className="notice ok">No issues were found by the checks listed under “How is this calculated?”.</div>
+            <div className="notice ok">
+              No issues were found by the checks listed under “How is this calculated?”.
+            </div>
           </div>
         ) : (
           <div className="issue-list">
@@ -329,7 +647,11 @@ export function ColumnProfiles({
                   </div>
                 </td>
                 <td>
-                  <RoleSelect column={c} onChange={(role) => onRoleChange(c, role)} disabled={saving === c.name} />
+                  <RoleSelect
+                    column={c}
+                    onChange={(role) => onRoleChange(c, role)}
+                    disabled={saving === c.name}
+                  />
                   <div className="faint tiny" style={{ maxWidth: 190 }}>
                     {c.role_reason}
                   </div>
@@ -347,7 +669,11 @@ export function ColumnProfiles({
                     <div
                       onClick={() => !c.pii && onExploreColumn?.(c.name)}
                       style={{ cursor: !c.pii && onExploreColumn ? "pointer" : "default" }}
-                      title={!c.pii && onExploreColumn ? `Click to open ${c.name} in Explore` : undefined}
+                      title={
+                        !c.pii && onExploreColumn
+                          ? `Click to open ${c.name} in Explore`
+                          : undefined
+                      }
                     >
                       <Sparkline bins={p.histogram} />
                     </div>
@@ -357,9 +683,15 @@ export function ColumnProfiles({
                 </td>
                 <td className="small">
                   <div className="row-wrap" style={{ gap: 4 }}>
-                    {c.pii ? <Badge tone="bad">personal data: {c.pii.replace("_", " ")}</Badge> : null}
-                    {c.n_invalid ? <Badge tone="warn">{fmtInt(c.n_invalid)} unreadable</Badge> : null}
-                    {p?.n_outliers ? <Badge tone="info">{fmtInt(p.n_outliers)} unusual</Badge> : null}
+                    {c.pii ? (
+                      <Badge tone="bad">personal data: {c.pii.replace("_", " ")}</Badge>
+                    ) : null}
+                    {c.n_invalid ? (
+                      <Badge tone="warn">{fmtInt(c.n_invalid)} unreadable</Badge>
+                    ) : null}
+                    {p?.n_outliers ? (
+                      <Badge tone="info">{fmtInt(p.n_outliers)} unusual</Badge>
+                    ) : null}
                     {p?.flags.includes("constant") ? <Badge>single value</Badge> : null}
                   </div>
                   {c.parse_note ? <div className="faint tiny">{c.parse_note}</div> : null}

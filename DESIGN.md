@@ -93,7 +93,7 @@ components:
 
 EDAForge pairs warm, modular Bento architecture with uncompromising statistical precision. Rather than dressing a local analytical workbench in purple-neon AI-startup tropes or flattening it into an austere spreadsheet, the interface frames work inside an atmospheric outer mat (`#DCE8EB` mineral mist in Light mode; `#0D0B0F` warm obsidian in Dark mode) with a floating vertical pill dock and a generous rounded stage window (`28px` radius).
 
-Inside the stage, primary telemetry, data-health gauges, join previews, and confirmation counts occupy matte, color-drenched Bento tiles—Deep Petrol, Sage Mint, Blush Terracotta, Sunlit Sand, and Periwinkle Sky in Light mode, morphing into Deep Petrol-Teal, high-contrast Alabaster, and Electric Sky-Cyan in Dark mode. Dense analytical artifacts—ECharts IQR + 95% CI plots, schema ER diagrams, and tabular ledgers—sit on calm, high-contrast surfaces where uncertainty intervals carry visual priority.
+Inside the stage, primary telemetry, data-health gauges, join previews, and confirmation counts occupy matte, color-drenched Bento tiles—Deep Petrol, Sage Mint, Blush Terracotta, Sunlit Sand, and Periwinkle Sky in Light mode, morphing into Deep Petrol-Teal, high-contrast Alabaster, and Electric Sky-Cyan in Dark mode. Dense analytical artifacts—MUI X Charts (`@mui/x-charts` v9) IQR + 95% CI plots, schema ER diagrams, and tabular ledgers—sit on calm, high-contrast surfaces where uncertainty intervals carry visual priority.
 
 **Key Characteristics:**
 - Floating vertical pill dock (`24px` radius) separated cleanly from a rounded stage window (`28px` radius).

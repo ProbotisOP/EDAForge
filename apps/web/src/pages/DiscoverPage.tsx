@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { BarChart, pieClasses, PieChart } from "@mui/x-charts";
 import {
   Activity,
   AlertOctagon,
@@ -17,7 +18,17 @@ import { Badge, Empty, ErrorBox, HealthDot, Loading, Notice, Spinner } from "../
 import { api, subscribeRun } from "../lib/api";
 import { fmtDate, fmtInt, ROLE_LABEL } from "../lib/format";
 import { playConfirm, playDetent, playTick } from "../lib/sound";
-import type { ColumnInfo, Dataset, Intent, PlanItem, RunEvent, RunResultView, RunSettings, ScopePlan } from "../lib/types";
+import { useTheme } from "../lib/theme";
+import type {
+  ColumnInfo,
+  Dataset,
+  Intent,
+  PlanItem,
+  RunEvent,
+  RunResultView,
+  RunSettings,
+  ScopePlan,
+} from "../lib/types";
 import { useProject } from "./ProjectLayout";
 
 const INTENTS: { id: Intent; title: string; text: string; icon: typeof Compass }[] = [
@@ -491,8 +502,10 @@ interface Progress {
 
 export function RunPage() {
   const { project, refresh } = useProject();
+  const { tokens } = useTheme();
   const { runId = "" } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView] = useState<RunResultView | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [events, setEvents] = useState<RunEvent[]>([]);
@@ -532,6 +545,32 @@ export function RunPage() {
     );
     return close;
   }, [running, project.id, runId, load, refresh]);
+
+  const familySlices = useMemo(() => {
+    if (!view) return [];
+    const map = new Map<string, { id: string; label: string; value: number }>();
+    for (const item of view.feed) {
+      if (item.merged_into || item.evidence.grade === "E") continue;
+      const cur = map.get(item.family) ?? {
+        id: item.family,
+        label: item.family_label.split(" (")[0],
+        value: 0,
+      };
+      cur.value += 1;
+      map.set(item.family, cur);
+    }
+    return [...map.values()]
+      .sort((a, b) => b.value - a.value)
+      .map((s, idx) => ({
+        ...s,
+        color: tokens.palette[idx % tokens.palette.length],
+      }));
+  }, [view, tokens.palette]);
+
+  const searchedRows = useMemo(() => {
+    if (!view) return [];
+    return view.searched.filter((s) => s.tested > 0).slice(0, 6);
+  }, [view]);
 
   if (error)
     return (
@@ -714,6 +753,132 @@ export function RunPage() {
             <div className="bento-kpi-lbl">Hypotheses tested (FDR controlled)</div>
           </div>
         </div>
+
+        {/* MUI X Charts v9 Run Evidence Telemetry Duo */}
+        {familySlices.length > 0 && searchedRows.length > 0 ? (
+          <div className="mui-telemetry-duo">
+            <div className="bento-tile bento-surface-card mui-mini-chart-card">
+              <div className="mui-mini-chart-head">
+                <h3>Pattern breakdown</h3>
+                <span className="small muted">Click any slice to filter the feed below</span>
+              </div>
+              <PieChart
+                height={208}
+                slotProps={{
+                  legend: {
+                    toggleVisibilityOnClick: true,
+                  },
+                }}
+                margin={{ top: 8, right: 12, bottom: 8, left: 12 }}
+                series={[
+                  {
+                    id: "run-families",
+                    innerRadius: "54%",
+                    outerRadius: "86%",
+                    paddingAngle: 3,
+                    cornerRadius: 7,
+                    highlightScope: { highlight: "item", fade: "global" },
+                    highlighted: { additionalRadius: 5 },
+                    faded: { innerRadius: 30, additionalRadius: -4, color: tokens.axisLine },
+                    arcLabel: (item) => `${item.value}`,
+                    arcLabelMinAngle: 24,
+                    data: familySlices,
+                    valueFormatter: (item) =>
+                      `${item.value} ${item.value === 1 ? "item" : "items"}`,
+                  },
+                ]}
+                onItemClick={(_ev, item) => {
+                  const fam = familySlices[item.dataIndex]?.id;
+                  if (!fam) return;
+                  playTick();
+                  const next = new URLSearchParams(searchParams);
+                  if (next.get("fam") === fam) next.delete("fam");
+                  else next.set("fam", fam);
+                  setSearchParams(next, { replace: true });
+                }}
+                sx={{
+                  [`& .${pieClasses.arcLabel}`]: {
+                    fill: "#FFFFFF",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    fontFamily: "var(--mono)",
+                  },
+                  cursor: "pointer",
+                }}
+              />
+            </div>
+
+            <div className="bento-tile bento-surface-card mui-mini-chart-card">
+              <div className="mui-mini-chart-head">
+                <h3>FDR screening funnel by analyzer</h3>
+                <span className="small muted">Hypotheses tested vs confirmed findings</span>
+              </div>
+              <BarChart
+                height={208}
+                layout="horizontal"
+                borderRadius={6}
+                grid={{ vertical: true }}
+                slotProps={{
+                  legend: {
+                    toggleVisibilityOnClick: true,
+                  },
+                }}
+                margin={{ top: 6, right: 18, bottom: 24, left: 6 }}
+                xAxis={[
+                  {
+                    scaleType: "linear",
+                    disableLine: true,
+                    disableTicks: true,
+                    height: 24,
+                    tickLabelStyle: { fontSize: 12, fill: tokens.axisLabel },
+                  },
+                ]}
+                yAxis={[
+                  {
+                    scaleType: "band",
+                    data: searchedRows.map((s) => s.label.split(" (")[0]),
+                    width: 148,
+                    disableLine: true,
+                    disableTicks: true,
+                    categoryGapRatio: 0.28,
+                    tickLabelStyle: { fontSize: 12, fill: tokens.text, fontWeight: 500 },
+                    valueFormatter: (v: string, ctx) =>
+                      ctx.location === "tick" && v.length > 20 ? `${v.slice(0, 19)}…` : v,
+                  },
+                ]}
+                series={[
+                  {
+                    id: "tested-h",
+                    label: "Tested",
+                    color: tokens.primarySoft,
+                    data: searchedRows.map((s) => s.tested),
+                    highlightScope: { highlight: "series", fade: "global" },
+                  },
+                  {
+                    id: "promoted-h",
+                    label: "Screened",
+                    color: tokens.secondary,
+                    data: searchedRows.map((s) => s.promoted),
+                    highlightScope: { highlight: "series", fade: "global" },
+                  },
+                  {
+                    id: "reported-h",
+                    label: "Confirmed",
+                    color: tokens.primary,
+                    data: searchedRows.map((s) => s.confirmed),
+                    highlightScope: { highlight: "series", fade: "global" },
+                  },
+                ]}
+                sx={{
+                  "& .MuiChartsGrid-line": {
+                    stroke: tokens.splitLine,
+                    strokeDasharray: "3 4",
+                  },
+                }}
+              />
+            </div>
+          </div>
+        ) : null}
 
         <div className="muted small tabular-nums">
           <b>{String(view.dataset.name)}</b> ·{" "}

@@ -98,9 +98,9 @@ This creates US customers (`$`), EU customers (`¢`), and multi-year orders with
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/data-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/data-light.png">
-  <img src="docs/screenshots/data-light.png" alt="EDAForge Data Workbench with slim floating dock and Bento health metrics" width="100%">
+  <img src="docs/screenshots/data-light.png" alt="EDAForge Data Workbench with MUI X Gauge, RadarChart, Donut PieChart, and Completeness BarChart" width="100%">
 </picture>
-<sub>Slim floating icon dock, radial data-health dial, column distributions, interactive drill studio, and reproducible cleaning recipes.</sub>
+<sub>Slim floating icon dock, MUI X radial health <code>Gauge</code>, 5-axis <code>RadarChart</code>, interactive role <code>PieChart</code> donut, completeness <code>BarChart</code>, and drill studio.</sub>
 
 </td>
 <td width="50%" valign="top">
@@ -118,16 +118,16 @@ This creates US customers (`$`), EU customers (`¢`), and multi-year orders with
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/discover-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/discover-light.png">
-  <img src="docs/screenshots/discover-light.png" alt="EDAForge Discovery Feed with FDR-controlled findings and uncertainty charts" width="100%">
+  <img src="docs/screenshots/discover-light.png" alt="EDAForge Discovery Feed with MUI X Donut, Screening Funnel, Diverging Bars, Density Area, and Spline Scatter" width="100%">
 </picture>
-<sub>Benjamini–Hochberg FDR control and holdout confirmation across group gaps, curves, Simpson's paradox reversals, and cross-file mismatches.</sub>
+<sub>Benjamini–Hochberg FDR screening funnel, pattern breakdown donut, rounded multi-palette CI bars, dual-gradient density areas, and diverging Simpson's paradox charts.</sub>
 
 </td>
 <td width="50%" valign="top">
 
 ### 4 · Finding inspector
-<img src="docs/screenshots/finding-inspector.png" alt="EDAForge Finding Inspector with Plain, Analyst, and Scientist explanations" width="100%">
-<sub>Switch between <b>Plain</b>, <b>Analyst</b>, and <b>Scientist</b> lenses, drill into subgroups on IQR + 95% CI plots, and inspect the full statistical ledger.</sub>
+<img src="docs/screenshots/finding-inspector.png" alt="EDAForge Finding Inspector with multi-view MUI X chart switcher and 5-axis Ranking RadarChart" width="100%">
+<sub>Switch between <b>Plain</b>, <b>Analyst</b>, and <b>Scientist</b> lenses, toggle chart views (<code>Bars + CI</code>, <code>Radar</code>, <code>Row Share</code>, <code>Forest + IQR</code>), and inspect the 5-axis ranking <code>RadarChart</code>.</sub>
 
 </td>
 </tr>
@@ -234,7 +234,7 @@ that automatically, so you don't have to:
 <br>
 
 ```
-apps/web/             React 19 · TypeScript · Vite · ECharts · React Flow · Motion · Three.js · Vega-Lite
+apps/web/             React 19 · TypeScript · Vite · MUI X Charts (@mui/x-charts v9) · React Flow · Motion · Three.js
 packages/edaforge/    Python engine (polars · numpy · scipy · scikit-learn · FastAPI)
   ingest/             files and databases
   link/               appends, joins, key and unit detection

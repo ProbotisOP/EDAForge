@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as echarts from "echarts";
 import {
   ArrowUpLeft,
   BarChart3,
@@ -11,16 +10,18 @@ import {
   Grid,
   Layers,
   LineChart,
+  PieChart as PieChartIcon,
+  Radar,
   ScatterChart,
   Table2,
 } from "lucide-react";
 import { api } from "../lib/api";
+import { fmtCell, fmtInt, fmtPct, ROLE_LABEL } from "../lib/format";
 import {
-  buildExploreOption,
+  buildExploreChart,
   type DrillTarget,
   type ExploreVisualStyle,
-} from "../lib/echartsAdapter";
-import { fmtCell, fmtInt, fmtPct, ROLE_LABEL } from "../lib/format";
+} from "../lib/muiChartsAdapter";
 import { useTheme } from "../lib/theme";
 import type {
   AggKind,
@@ -30,7 +31,7 @@ import type {
   ExploreResponse,
   TimeGrain,
 } from "../lib/types";
-import { EChartsSurface } from "./Chart";
+import { exportContainerAsPng, MuiChartSurface } from "./Chart";
 import { SpringSegmented } from "./kit";
 import { Badge, ErrorBox, Spinner } from "./ui";
 
@@ -56,13 +57,17 @@ export interface ExploreStudioProps {
   compactHeader?: boolean;
 }
 
-const MODE_OPTIONS: { id: ExploreMode; label: string; icon: typeof BarChart3 }[] = [
+type StudioPillId = ExploreMode | "radar" | "donut";
+
+const MODE_OPTIONS: { id: StudioPillId; label: string; icon: typeof BarChart3 }[] = [
   { id: "auto", label: "Smart Auto", icon: GitBranch },
-  { id: "group", label: "Group & CI", icon: BarChart3 },
+  { id: "group", label: "Bars & CI", icon: BarChart3 },
+  { id: "radar", label: "Radar", icon: Radar },
+  { id: "donut", label: "Donut", icon: PieChartIcon },
   { id: "boxplot", label: "Boxplot", icon: Layers },
   { id: "hierarchy", label: "Sunburst / Tree", icon: Layers },
-  { id: "time", label: "Time Series", icon: LineChart },
-  { id: "histogram", label: "Histogram", icon: BarChart3 },
+  { id: "time", label: "Time Area", icon: LineChart },
+  { id: "histogram", label: "Distribution", icon: BarChart3 },
   { id: "scatter", label: "Scatter + Fit", icon: ScatterChart },
   { id: "heatmap", label: "Matrix", icon: Grid },
 ];
@@ -108,7 +113,9 @@ export function ExploreStudio({
   const [timeGrain, setTimeGrain] = useState<TimeGrain>("auto");
   const [bins, setBins] = useState<number>(28);
   const [visualStyle, setVisualStyle] = useState<ExploreVisualStyle>("bar");
-  const [filters, setFilters] = useState<DrillFilter[]>(() => (initialFilter ? [initialFilter] : []));
+  const [filters, setFilters] = useState<DrillFilter[]>(() =>
+    initialFilter ? [initialFilter] : [],
+  );
   const [history, setHistory] = useState<HistoryFrame[]>([]);
   const [drillNextCol, setDrillNextCol] = useState<string>("");
 
@@ -126,9 +133,8 @@ export function ExploreStudio({
   } | null>(null);
   const [showSample, setShowSample] = useState<boolean>(false);
   const [resetTick, setResetTick] = useState<number>(0);
-  const chartInst = useRef<echarts.ECharts | null>(null);
+  const chartHostRef = useRef<HTMLDivElement | null>(null);
 
-  // Sync external initialFilter changes (e.g. clicking a bar on FindingPage)
   useEffect(() => {
     if (initialFilter) {
       setFilters([initialFilter]);
@@ -184,7 +190,20 @@ export function ExploreStudio({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [projectId, dataset.id, mode, x, y, group, dimensions, agg, timeGrain, bins, filters, drillNextCol]);
+  }, [
+    projectId,
+    dataset.id,
+    mode,
+    x,
+    y,
+    group,
+    dimensions,
+    agg,
+    timeGrain,
+    bins,
+    filters,
+    drillNextCol,
+  ]);
 
   useEffect(fetchExplore, [fetchExplore]);
 
@@ -250,7 +269,6 @@ export function ExploreStudio({
   const handleDrillTarget = (t: DrillTarget) => {
     if (!res) return;
 
-    // 1. Temporal drill-down: e.g. year -> quarter -> month -> week -> day
     if (t.period && t.periodEnd && t.column) {
       const nextG = (res.next_grain as TimeGrain | null) ?? null;
       pushState(`${t.column}: ${t.period}`);
@@ -274,7 +292,6 @@ export function ExploreStudio({
       return;
     }
 
-    // 2. Numeric bin / range drill-down
     if (typeof t.low === "number" && typeof t.high === "number") {
       const col = t.column ?? x;
       if (!col) return;
@@ -287,7 +304,6 @@ export function ExploreStudio({
       return;
     }
 
-    // 3. Categorical / Matrix cell drill-down
     if (t.column && t.value !== undefined) {
       const newFilters: DrillFilter[] = [
         ...filters,
@@ -349,31 +365,40 @@ export function ExploreStudio({
   };
 
   const adapted = useMemo(
-    () => (res ? buildExploreOption(res, tokens, visualStyle) : null),
+    () => (res ? buildExploreChart(res, tokens, visualStyle) : null),
     [res, tokens, visualStyle],
   );
 
   const exportPng = () => {
-    const inst = chartInst.current;
-    if (!inst) return;
-    const url = inst.getDataURL({
-      type: "png",
-      pixelRatio: 2,
-      backgroundColor: tokens.isDark ? "#0F172A" : "#FFFFFF",
-    });
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${dataset.name}-explore.png`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    if (!chartHostRef.current) return;
+    void exportContainerAsPng(
+      chartHostRef.current,
+      `${dataset.name}-explore.png`,
+      tokens,
+      res?.title,
+      res?.subtitle,
+    );
   };
 
-  const canDrillUp = history.length > 0 || filters.length > 0 || Boolean(res?.mode === "time" && res?.prev_grain);
+  const canDrillUp =
+    history.length > 0 || filters.length > 0 || Boolean(res?.mode === "time" && res?.prev_grain);
+
+  const activePill: StudioPillId =
+    mode === "group" && visualStyle === "radar"
+      ? "radar"
+      : mode === "group" && visualStyle === "donut"
+        ? "donut"
+        : mode;
+
+  const groupRowCount = Array.isArray(res?.data.rows)
+    ? (res.data.rows as unknown[]).length
+    : Array.isArray(res?.data.categories)
+      ? (res.data.categories as unknown[]).length
+      : 0;
+  const hasSplitSeries = Array.isArray(res?.data.series) && (res.data.series as unknown[]).length > 0;
 
   return (
     <div className="explore-studio stack">
-      {/* Mode & Controls Strip */}
       <div className="explore-controls card-surface">
         {!compactHeader ? (
           <div className="mode-pills" role="tablist" aria-label="Chart mode">
@@ -384,19 +409,55 @@ export function ExploreStudio({
                   key={m.id}
                   type="button"
                   role="tab"
-                  aria-selected={mode === m.id}
-                  className={`mode-pill${mode === m.id ? " active" : ""}`}
+                  aria-selected={activePill === m.id}
+                  className={`mode-pill${activePill === m.id ? " active" : ""}`}
                   onClick={() => {
+                    if (m.id === "radar") {
+                      setMode("group");
+                      if (!catCols.some((c) => c.name === x) && catCols[0]) setX(catCols[0].name);
+                      setVisualStyle("radar");
+                      return;
+                    }
+                    if (m.id === "donut") {
+                      setMode("group");
+                      if (!catCols.some((c) => c.name === x) && catCols[0]) setX(catCols[0].name);
+                      setGroup("");
+                      setVisualStyle("donut");
+                      return;
+                    }
+
                     setMode(m.id);
-                    if (m.id === "time" && dateCols[0] && usable.find((c) => c.name === x)?.role !== "datetime") {
+                    if (m.id === "group") {
+                      setVisualStyle("bar");
+                    } else if (
+                      m.id === "time" &&
+                      dateCols[0] &&
+                      usable.find((c) => c.name === x)?.role !== "datetime"
+                    ) {
                       setX(dateCols[0].name);
+                      setVisualStyle("area");
                     } else if (m.id === "scatter") {
-                      if (numericCols[0] && usable.find((c) => c.name === x)?.role !== "numeric") setX(numericCols[0].name);
-                      if (numericCols[1] && (!y || usable.find((c) => c.name === y)?.role !== "numeric")) {
-                        setY(numericCols.find((c) => c.name !== x)?.name ?? numericCols[0].name);
+                      if (
+                        numericCols[0] &&
+                        usable.find((c) => c.name === x)?.role !== "numeric"
+                      ) {
+                        setX(numericCols[0].name);
                       }
-                    } else if (m.id === "histogram" && numericCols[0] && usable.find((c) => c.name === x)?.role !== "numeric") {
+                      if (
+                        numericCols[1] &&
+                        (!y || usable.find((c) => c.name === y)?.role !== "numeric")
+                      ) {
+                        setY(
+                          numericCols.find((c) => c.name !== x)?.name ?? numericCols[0].name,
+                        );
+                      }
+                    } else if (
+                      m.id === "histogram" &&
+                      numericCols[0] &&
+                      usable.find((c) => c.name === x)?.role !== "numeric"
+                    ) {
                       setX(numericCols[0].name);
+                      setVisualStyle("bar");
                     } else if (m.id === "hierarchy") {
                       if (!catCols.some((c) => c.name === x) && catCols[0]) setX(catCols[0].name);
                       if (!group && catCols[1]) setGroup(catCols[1].name);
@@ -417,7 +478,13 @@ export function ExploreStudio({
 
         <div className="explore-fields">
           <label className="field">
-            <span>{mode === "hierarchy" ? "Level 1" : mode === "scatter" || mode === "histogram" ? "X Axis" : "Dimension (X)"}</span>
+            <span>
+              {mode === "hierarchy"
+                ? "Level 1"
+                : mode === "scatter" || mode === "histogram"
+                  ? "X Axis"
+                  : "Dimension (X)"}
+            </span>
             <select value={x} onChange={(e) => setX(e.target.value)} aria-label="Primary X column">
               {usable.map((c) => (
                 <option key={c.name} value={c.name}>
@@ -429,10 +496,23 @@ export function ExploreStudio({
 
           {mode !== "histogram" ? (
             <label className="field">
-              <span>{mode === "scatter" ? "Y Axis" : mode === "heatmap" ? "Row Category (Y)" : "Metric (Y)"}</span>
+              <span>
+                {mode === "scatter"
+                  ? "Y Axis"
+                  : mode === "heatmap"
+                    ? "Row Category (Y)"
+                    : "Metric (Y)"}
+              </span>
               <select value={y} onChange={(e) => setY(e.target.value)} aria-label="Metric Y column">
-                {mode !== "scatter" && mode !== "heatmap" ? <option value="">Row Count</option> : null}
-                {(mode === "scatter" ? numericCols : mode === "heatmap" ? catCols : usable).map((c) => (
+                {mode !== "scatter" && mode !== "heatmap" ? (
+                  <option value="">Row Count</option>
+                ) : null}
+                {(mode === "scatter"
+                  ? numericCols
+                  : mode === "heatmap"
+                    ? catCols
+                    : usable
+                ).map((c) => (
                   <option key={c.name} value={c.name}>
                     {c.name} ({ROLE_LABEL[c.role] ?? c.role})
                   </option>
@@ -456,7 +536,11 @@ export function ExploreStudio({
           {mode !== "scatter" && mode !== "histogram" ? (
             <label className="field">
               <span>Statistic</span>
-              <select value={agg} onChange={(e) => setAgg(e.target.value as AggKind)} aria-label="Statistic aggregation">
+              <select
+                value={agg}
+                onChange={(e) => setAgg(e.target.value as AggKind)}
+                aria-label="Statistic aggregation"
+              >
                 <option value="mean">Mean (+ 95% CI)</option>
                 <option value="median">Median</option>
                 <option value="sum">Sum</option>
@@ -467,8 +551,18 @@ export function ExploreStudio({
           ) : null}
 
           <label className="field">
-            <span>{mode === "hierarchy" ? "Level 2" : mode === "heatmap" ? "Cell Metric (optional)" : "Split / Color by"}</span>
-            <select value={group} onChange={(e) => setGroup(e.target.value)} aria-label="Group or color column">
+            <span>
+              {mode === "hierarchy"
+                ? "Level 2"
+                : mode === "heatmap"
+                  ? "Cell Metric (optional)"
+                  : "Split / Color by"}
+            </span>
+            <select
+              value={group}
+              onChange={(e) => setGroup(e.target.value)}
+              aria-label="Group or color column"
+            >
               <option value="">— none —</option>
               {(mode === "heatmap" ? numericCols : catCols).map((c) => (
                 <option key={c.name} value={c.name}>
@@ -481,7 +575,11 @@ export function ExploreStudio({
           {mode === "hierarchy" ? (
             <label className="field">
               <span>Level 3</span>
-              <select value={thirdDim} onChange={(e) => setThirdDim(e.target.value)} aria-label="Hierarchy level 3">
+              <select
+                value={thirdDim}
+                onChange={(e) => setThirdDim(e.target.value)}
+                aria-label="Hierarchy level 3"
+              >
                 <option value="">— optional —</option>
                 {catCols.map((c) => (
                   <option key={c.name} value={c.name}>
@@ -490,7 +588,8 @@ export function ExploreStudio({
                 ))}
               </select>
             </label>
-          ) : (res?.mode === "group" || res?.mode === "boxplot" || res?.mode === "time") && res.next_dimensions.length > 0 ? (
+          ) : (res?.mode === "group" || res?.mode === "boxplot" || res?.mode === "time") &&
+            res.next_dimensions.length > 0 ? (
             <label className="field">
               <span>Drill-down target</span>
               <select
@@ -507,13 +606,19 @@ export function ExploreStudio({
             </label>
           ) : null}
 
-          {(mode === "time" || res?.mode === "time") ? (
+          {mode === "time" || res?.mode === "time" ? (
             <label className="field">
               <span>Time Grain</span>
-              <select value={timeGrain} onChange={(e) => setTimeGrain(e.target.value as TimeGrain)} aria-label="Time grain">
+              <select
+                value={timeGrain}
+                onChange={(e) => setTimeGrain(e.target.value as TimeGrain)}
+                aria-label="Time grain"
+              >
                 {GRAINS.map((g) => (
                   <option key={g} value={g}>
-                    {g === "auto" ? `Auto (${res?.grain_used ?? "smart"})` : g[0].toUpperCase() + g.slice(1)}
+                    {g === "auto"
+                      ? `Auto (${res?.grain_used ?? "smart"})`
+                      : g[0].toUpperCase() + g.slice(1)}
                   </option>
                 ))}
               </select>
@@ -522,7 +627,6 @@ export function ExploreStudio({
         </div>
       </div>
 
-      {/* Sticky Drill-Down / Breadcrumb Bar */}
       <div className="drill-bar">
         <div className="drill-crumbs" aria-label="Drill-down path">
           <button
@@ -576,21 +680,64 @@ export function ExploreStudio({
         <div className="row-wrap" style={{ gap: 8 }}>
           {res ? (
             <Badge tone={res.matched_rows < res.total_rows ? "brand" : "outline"}>
-              {fmtInt(res.matched_rows)} rows ({fmtPct(res.matched_rows / Math.max(res.total_rows, 1), 0)})
+              {fmtInt(res.matched_rows)} rows (
+              {fmtPct(res.matched_rows / Math.max(res.total_rows, 1), 0)})
             </Badge>
           ) : null}
 
           {res?.mode === "group" || res?.mode === "boxplot" ? (
+            hasSplitSeries ? (
+              <SpringSegmented<ExploreVisualStyle>
+                size="xs"
+                role="group"
+                ariaLabel="Split visual style"
+                value={
+                  visualStyle === "stacked" || (visualStyle === "radar" && groupRowCount >= 3)
+                    ? visualStyle
+                    : "bar"
+                }
+                onChange={setVisualStyle}
+                items={[
+                  { id: "bar", label: "Grouped" },
+                  { id: "stacked", label: "Stacked" },
+                  ...(groupRowCount >= 3 ? [{ id: "radar" as const, label: "Radar" }] : []),
+                ]}
+              />
+            ) : (
+              <SpringSegmented<ExploreVisualStyle>
+                size="xs"
+                role="group"
+                ariaLabel="Visual style"
+                value={
+                  visualStyle === "lollipop" ||
+                  visualStyle === "boxplot" ||
+                  visualStyle === "donut" ||
+                  (visualStyle === "radar" && groupRowCount >= 3)
+                    ? visualStyle
+                    : "bar"
+                }
+                onChange={setVisualStyle}
+                items={[
+                  { id: "bar", label: "Bars" },
+                  ...(groupRowCount >= 3 ? [{ id: "radar" as const, label: "Radar" }] : []),
+                  { id: "donut", label: "Donut" },
+                  { id: "lollipop", label: "Lollipop" },
+                  ...(Boolean(res.data.has_box) ? [{ id: "boxplot" as const, label: "Boxplot" }] : []),
+                ]}
+              />
+            )
+          ) : null}
+
+          {res?.mode === "histogram" ? (
             <SpringSegmented<ExploreVisualStyle>
               size="xs"
               role="group"
-              ariaLabel="Visual style"
-              value={visualStyle === "lollipop" || visualStyle === "boxplot" ? visualStyle : "bar"}
+              ariaLabel="Histogram style"
+              value={visualStyle === "area" ? "area" : "bar"}
               onChange={setVisualStyle}
               items={[
                 { id: "bar", label: "Bars" },
-                { id: "lollipop", label: "Lollipop" },
-                ...(Boolean(res.data.has_box) ? [{ id: "boxplot" as const, label: "Boxplot" }] : []),
+                { id: "area", label: "Density Area" },
               ]}
             />
           ) : null}
@@ -624,7 +771,7 @@ export function ExploreStudio({
             />
           ) : null}
 
-          {adapted?.canBrush ? (
+          {adapted?.canBrush && adapted.model.kind === "scatter" ? (
             <button
               type="button"
               className={`btn btn-sm${brushActive ? " btn-primary" : ""}`}
@@ -657,7 +804,11 @@ export function ExploreStudio({
             </span>
             {brushedRange.r !== null ? (
               <span className="mono small">
-                r = <b>{brushedRange.r >= 0 ? "+" : ""}{brushedRange.r.toFixed(3)}</b>
+                r ={" "}
+                <b>
+                  {brushedRange.r >= 0 ? "+" : ""}
+                  {brushedRange.r.toFixed(3)}
+                </b>
               </span>
             ) : null}
           </div>
@@ -667,23 +818,25 @@ export function ExploreStudio({
         </div>
       ) : null}
 
-      {/* Main Fluid Chart Canvas */}
       <div className="explore-canvas-card">
         <div className="spread" style={{ marginBottom: 6 }}>
           <div>
             <h3 style={{ margin: 0 }}>{res?.title ?? "Interactive Visual Explorer"}</h3>
-            <div className="small muted">{res?.subtitle ?? "Select columns above to explore"}</div>
+            <div className="small muted">
+              {res?.subtitle ?? "Select columns above to explore"}
+            </div>
           </div>
           {loading ? <Spinner label="Updating…" /> : null}
         </div>
 
         {adapted ? (
-          <EChartsSurface
+          <MuiChartSurface
             adapted={adapted}
             height={380}
+            showRangeControls={adapted.canZoom}
             brushActive={brushActive}
             resetTick={resetTick}
-            chartRef={chartInst}
+            hostRef={chartHostRef}
             onBrushStats={(st) =>
               setBrushedRange(
                 st
@@ -708,7 +861,6 @@ export function ExploreStudio({
           </div>
         )}
 
-        {/* Quick Next-Dimension Chips + Underlying Rows Toggle */}
         {res ? (
           <div className="explore-footer spread">
             <div className="row-wrap" style={{ gap: 6 }}>
@@ -730,44 +882,46 @@ export function ExploreStudio({
                     </button>
                   ))}
                 </>
-              ) : null}
+              ) : (
+                <span className="tiny muted">
+                  Click any bar, slice, or point to drill down · Click legend items to toggle series
+                </span>
+              )}
             </div>
+
             <button
               type="button"
               className="btn btn-sm"
               onClick={() => setShowSample((s) => !s)}
             >
               <Table2 size={13} />
-              <span>{showSample ? "Hide" : "Inspect"} slice rows ({fmtInt(res.matched_rows)})</span>
+              <span>
+                {showSample ? "Hide" : "Inspect"} matching rows ({res.sample_rows.length})
+              </span>
             </button>
           </div>
         ) : null}
       </div>
 
-      {/* Live Underlying Slice Records */}
-      {showSample && res && res.sample_columns.length > 0 ? (
+      {showSample && res && res.sample_rows.length > 0 ? (
         <div className="card">
           <div className="card-head">
-            <h4>
-              Underlying records in current slice (showing {res.sample_rows.length} of {fmtInt(res.matched_rows)})
-            </h4>
+            <h2>Sample of matching slice ({fmtInt(res.matched_rows)} total rows)</h2>
           </div>
-          <div className="table-wrap" style={{ maxHeight: 260, border: "none" }}>
+          <div className="table-wrap" style={{ border: "none", borderRadius: 0 }}>
             <table className="data">
               <thead>
                 <tr>
-                  {res.sample_columns.map((col) => (
-                    <th key={col}>{col === "__row__" ? "#" : col}</th>
+                  {Object.keys(res.sample_rows[0]).map((colName) => (
+                    <th key={colName}>{colName}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {res.sample_rows.map((row, rIdx) => (
                   <tr key={rIdx}>
-                    {row.map((val, cIdx) => (
-                      <td key={cIdx} className={res.sample_columns[cIdx] === "__row__" ? "rownum num" : ""}>
-                        {val === null || val === undefined ? <span className="null">missing</span> : fmtCell(val)}
-                      </td>
+                    {Object.entries(row).map(([colName, val]) => (
+                      <td key={colName}>{fmtCell(val)}</td>
                     ))}
                   </tr>
                 ))}

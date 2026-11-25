@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { SparkLineChart } from "@mui/x-charts/SparkLineChart";
 import {
   ArrowUpRight,
   Database,
@@ -45,6 +46,7 @@ export function ProjectsPage() {
   const { theme, toggleTheme } = useTheme();
   const { openAnscombe, openShortcuts } = useStudioExtras();
   const navigate = useNavigate();
+  const heroSparkGradId = useId().replace(/:/g, "");
 
   const load = useCallback(() => {
     setError(null);
@@ -93,6 +95,14 @@ export function ProjectsPage() {
     0,
   );
   const latestWithRun = (projects ?? []).find((p) => p.latest_run?.status === "completed");
+  const sparkColor = theme === "dark" ? "#156570" : "#5EEAD4";
+  const sparkSeries =
+    projects && projects.length >= 3
+      ? projects
+          .slice(0, 8)
+          .reverse()
+          .map((p, i) => Math.max(2, p.n_datasets * 3 + (p.latest_run?.n_findings ?? i + 1)))
+      : [4, 7, 6, 11, 14, 13, 19, 24];
 
   return (
     <div className="frame-outer home-frame">
@@ -169,7 +179,7 @@ export function ProjectsPage() {
         </header>
 
         <div className="home-body">
-          {/* FIRST VIEWPORT: ASYMMETRIC BENTO LAUNCHPAD (RefUI 1, 3, 4, 5) */}
+          {/* FIRST VIEWPORT: ASYMMETRIC BENTO LAUNCHPAD */}
           <section className="hero-bento-grid" aria-label="Start a workspace">
             <div className="bento-tile hero-launch-tile bento-surface-card">
               <h1>Audit, join, and verify your data locally</h1>
@@ -214,7 +224,7 @@ export function ProjectsPage() {
             </div>
 
             <div className="hero-side-stack">
-              {/* RefUI #3 & #4 inspired Stepped-Silhouette Telemetry Bento Card */}
+              {/* Interactive MUI X SparkLineChart Telemetry Bento Card */}
               <div className="bento-tile hero-telemetry-tile bento-alabaster-contrast">
                 <div className="spread">
                   <span className="bento-tile-title">Local studio index</span>
@@ -238,21 +248,35 @@ export function ProjectsPage() {
                   </div>
                 </div>
 
-                {/* Multi-stepped topographic silhouette (RefUI #3 350K card homage) */}
-                <svg viewBox="0 0 320 72" className="telemetry-wave-svg" preserveAspectRatio="none" aria-hidden="true">
-                  <path
-                    d="M0 72 L0 58 C24 58 28 44 54 44 C80 44 86 30 118 30 C148 30 154 18 188 18 C222 18 232 8 268 8 C294 8 304 4 320 4 L320 72 Z"
-                    fill="currentColor"
-                    fillOpacity="0.16"
-                  />
-                  <path
-                    d="M0 58 C24 58 28 44 54 44 C80 44 86 30 118 30 C148 30 154 18 188 18 C222 18 232 8 268 8 C294 8 304 4 320 4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeOpacity="0.52"
-                    strokeWidth="2.2"
-                  />
-                </svg>
+                <div className="telemetry-wave-host">
+                  <SparkLineChart
+                    plotType="line"
+                    area
+                    curve="natural"
+                    height={68}
+                    margin={{ top: 6, bottom: 0, left: 0, right: 0 }}
+                    data={sparkSeries}
+                    color={sparkColor}
+                    showTooltip
+                    showHighlight
+                    valueFormatter={(v) => (v === null ? "" : `Activity index: ${v}`)}
+                    sx={{
+                      "& .MuiAreaElement-root": {
+                        fill: `url(#hero-spark-${heroSparkGradId})`,
+                      },
+                      "& .MuiLineElement-root": {
+                        strokeWidth: 2.4,
+                      },
+                    }}
+                  >
+                    <defs>
+                      <linearGradient id={`hero-spark-${heroSparkGradId}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={sparkColor} stopOpacity={0.38} />
+                        <stop offset="100%" stopColor={sparkColor} stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                  </SparkLineChart>
+                </div>
               </div>
 
               <div className="hero-mini-duo">

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createTheme, ThemeProvider as MuiThemeProvider, type Theme } from "@mui/material/styles";
 
 export type ThemeMode = "light" | "dark";
 
@@ -30,49 +31,108 @@ const LIGHT_TOKENS: ChartThemeTokens = {
   isDark: false,
   text: "#12191D",
   subtext: "#46545D",
-  axisLabel: "#46545D",
-  axisLine: "#CBD6DA",
-  splitLine: "#E6EEF0",
+  axisLabel: "#4A5A64",
+  axisLine: "#CFDCE0",
+  splitLine: "#E3ECEF",
   tooltipBg: "#FFFFFF",
-  tooltipBorder: "#C5D2D7",
+  tooltipBorder: "#C5D4DA",
   tooltipText: "#12191D",
-  primary: "#1A5F68",
-  primarySoft: "rgba(26, 95, 104, 0.15)",
-  secondary: "#C84B31",
-  positive: "#0F766E",
-  negative: "#B91C1C",
-  warning: "#A14A08",
-  neutral: "#586873",
-  bandFill: "rgba(26, 95, 104, 0.11)",
-  iqrFill: "rgba(26, 95, 104, 0.16)",
-  palette: ["#1A5F68", "#C84B31", "#2B59C3", "#0F766E", "#A14A08", "#6B4E71", "#2A6F97", "#4A5568"],
-  heatmapRamp: ["#F4F8F9", "#CBE7EA", "#77BFC7", "#247682", "#163A40"],
-  divergingRamp: ["#B91C1C", "#F4A593", "#EEF3F5", "#7CC6D0", "#164E56"],
+  primary: "#156570",
+  primarySoft: "rgba(21, 101, 112, 0.20)",
+  secondary: "#E05A47",
+  positive: "#0D8A72",
+  negative: "#C8372D",
+  warning: "#D97706",
+  neutral: "#5B707B",
+  bandFill: "rgba(224, 90, 71, 0.16)",
+  iqrFill: "rgba(21, 101, 112, 0.18)",
+  palette: [
+    "#156570",
+    "#E05A47",
+    "#0D8A72",
+    "#2563EB",
+    "#D97706",
+    "#0891B2",
+    "#4F46E5",
+    "#475569",
+  ],
+  heatmapRamp: ["#EEF5F7", "#BCE3E8", "#5BB5C0", "#176B77", "#113B42"],
+  divergingRamp: ["#C8372D", "#F29F8F", "#EDF3F5", "#6BC0CC", "#155861"],
 };
 
 const DARK_TOKENS: ChartThemeTokens = {
   isDark: true,
   text: "#EFF4F6",
-  subtext: "#A2B3BC",
-  axisLabel: "#A2B3BC",
-  axisLine: "#2F3E45",
-  splitLine: "#202B30",
-  tooltipBg: "#182024",
-  tooltipBorder: "#34464E",
+  subtext: "#A4B6BF",
+  axisLabel: "#9FB2BC",
+  axisLine: "#2B3A42",
+  splitLine: "#1F2B31",
+  tooltipBg: "#182126",
+  tooltipBorder: "#364A54",
   tooltipText: "#EFF4F6",
-  primary: "#4CC9F0",
-  primarySoft: "rgba(76, 201, 240, 0.20)",
-  secondary: "#5EEAD4",
+  primary: "#38BDF8",
+  primarySoft: "rgba(56, 189, 248, 0.24)",
+  secondary: "#FB7185",
   positive: "#34D399",
   negative: "#FB7185",
   warning: "#FBBF24",
-  neutral: "#8B9FA9",
-  bandFill: "rgba(76, 201, 240, 0.14)",
-  iqrFill: "rgba(76, 201, 240, 0.19)",
-  palette: ["#4CC9F0", "#34D399", "#FBBF24", "#FB7185", "#A5B4FC", "#2DD4BF", "#FDBA74", "#CBD5E1"],
-  heatmapRamp: ["#171F23", "#1D4249", "#246E7B", "#4CC9F0", "#CAF0F8"],
-  divergingRamp: ["#FB7185", "#881337", "#233036", "#1E6073", "#4CC9F0"],
+  neutral: "#7E95A2",
+  bandFill: "rgba(251, 113, 133, 0.18)",
+  iqrFill: "rgba(56, 189, 248, 0.22)",
+  palette: [
+    "#38BDF8",
+    "#FB7185",
+    "#34D399",
+    "#FBBF24",
+    "#2DD4BF",
+    "#818CF8",
+    "#FDBA74",
+    "#93C5FD",
+  ],
+  heatmapRamp: ["#162025", "#1A424B", "#1F7485", "#38BDF8", "#CCF2FE"],
+  divergingRamp: ["#FB7185", "#881D3D", "#202C33", "#1A6074", "#38BDF8"],
 };
+
+export function createBentoMuiTheme(tokens: ChartThemeTokens): Theme {
+  return createTheme({
+    palette: {
+      mode: tokens.isDark ? "dark" : "light",
+      primary: { main: tokens.primary },
+      secondary: { main: tokens.secondary },
+      success: { main: tokens.positive },
+      warning: { main: tokens.warning },
+      error: { main: tokens.negative },
+      background: {
+        default: tokens.isDark ? "#12171A" : "#F6F9FA",
+        paper: tokens.tooltipBg,
+      },
+      text: {
+        primary: tokens.text,
+        secondary: tokens.subtext,
+      },
+      divider: tokens.splitLine,
+    },
+    shape: {
+      borderRadius: 12,
+    },
+    typography: {
+      fontFamily: '"Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      fontSize: 13,
+    },
+    components: {
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundImage: "none",
+            backgroundColor: tokens.tooltipBg,
+            border: `1px solid ${tokens.tooltipBorder}`,
+            borderRadius: 12,
+          },
+        },
+      },
+    },
+  });
+}
 
 interface ThemeContextValue {
   theme: ThemeMode;
@@ -114,17 +174,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
+  const tokens = theme === "dark" ? DARK_TOKENS : LIGHT_TOKENS;
+  const muiTheme = useMemo(() => createBentoMuiTheme(tokens), [tokens]);
+
   const value = useMemo<ThemeContextValue>(
     () => ({
       theme,
       setTheme,
       toggleTheme: () => setTheme((prev) => (prev === "dark" ? "light" : "dark")),
-      tokens: theme === "dark" ? DARK_TOKENS : LIGHT_TOKENS,
+      tokens,
     }),
-    [theme],
+    [theme, tokens],
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>
+      <MuiThemeProvider theme={muiTheme}>{children}</MuiThemeProvider>
+    </ThemeContext.Provider>
+  );
 }
 
 export function useTheme(): ThemeContextValue {

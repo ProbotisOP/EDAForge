@@ -1284,10 +1284,10 @@ code {
   letter-spacing: -0.03em;
   line-height: 1.1;
 }
-.telemetry-wave-svg {
+.telemetry-wave-svg,
+.telemetry-wave-host {
   width: calc(100% + 44px);
-  height: 54px;
-  margin: 10px -22px 0;
+  margin: 8px -22px 0;
   display: block;
 }
 
@@ -2663,11 +2663,62 @@ table.columns-table td:nth-child(5) {
   margin: 0;
   position: relative;
 }
-.chart-frame .vega-embed {
+.mui-chart-heading {
+  margin-bottom: 6px;
+}
+.mui-chart-title {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  line-height: 1.25;
+}
+.mui-chart-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.mui-chart-surface {
   width: 100%;
 }
-.chart-frame .vega-embed summary {
-  display: none;
+.mui-bento-float-tip {
+  position: absolute;
+  z-index: 40;
+  pointer-events: none;
+  max-width: 280px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-float);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.42;
+  font-variant-numeric: tabular-nums;
+}
+.mui-bento-float-tip .tip-head {
+  font-weight: 650;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+.mui-bento-float-tip .tip-row {
+  color: var(--ink-2);
+}
+.chart-range-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--line);
+}
+.chart-range-bar input[type="range"] {
+  flex: 1;
+  accent-color: var(--brand);
+  cursor: pointer;
 }
 .chart-toolbar {
   display: flex;
@@ -4046,19 +4097,104 @@ table.columns-table td:nth-child(5) {
   background: var(--bg-subtle);
 }
 
-#vg-tooltip-element {
+/* MUI X Charts v9 Dual-World Bento Theme Overrides */
+.mui-telemetry-trio {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.mui-telemetry-duo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.mui-mini-chart-card {
+  padding: 15px 17px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+.mui-mini-chart-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+.mui-mini-chart-head h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 14.5px;
+  font-weight: 680;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.mui-heatmap-scale {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 0 12px;
+}
+.mui-heatmap-gradient {
+  width: 112px;
+  height: 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+.MuiChartsTooltip-paper,
+.MuiChartsTooltip-root .MuiPaper-root {
   background: var(--surface) !important;
   color: var(--ink) !important;
   border: 1px solid var(--line-strong) !important;
-  border-radius: 8px !important;
+  border-radius: 12px !important;
+  box-shadow: var(--shadow-float) !important;
+  font-family: var(--sans) !important;
   font-size: 12px !important;
+  font-variant-numeric: tabular-nums !important;
+}
+.MuiChartsTooltip-cell,
+.MuiChartsTooltip-labelCell,
+.MuiChartsTooltip-valueCell,
+.MuiChartsTooltip-axisValueCell {
+  color: var(--ink) !important;
+  font-family: var(--sans) !important;
+  font-size: 12px !important;
+  border-color: var(--line-2) !important;
+}
+.MuiChartsTooltip-valueCell {
+  font-family: var(--mono) !important;
+  font-weight: 600 !important;
+}
+.MuiChartsLegend-root {
+  font-family: var(--sans) !important;
+  font-size: 12px !important;
+  color: var(--ink-2) !important;
+  gap: 6px 10px !important;
+}
+.MuiChartsLegend-series {
+  border-radius: 999px !important;
+  padding: 2px 7px !important;
+  transition: background 0.14s var(--ease), opacity 0.14s var(--ease) !important;
+}
+.MuiChartsLegend-series:hover {
+  background: var(--bg-subtle) !important;
+}
+.MuiChartsLegend-label {
+  font-family: var(--sans) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--ink-2) !important;
 }
 
 /* ==========================================================================
    17. Responsive Breakpoints (1140px / 920px / 600px)
    ========================================================================== */
 @media (max-width: 1180px) {
-  .hero-bento-grid {
+  .hero-bento-grid,
+  .mui-telemetry-trio,
+  .mui-telemetry-duo {
     grid-template-columns: 1fr;
   }
   .bento-kpi-row {

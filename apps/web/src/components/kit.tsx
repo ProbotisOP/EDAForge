@@ -1,5 +1,6 @@
 import { useId, useRef, type HTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { Gauge, gaugeClasses } from "@mui/x-charts/Gauge";
 import { motion, useReducedMotion } from "motion/react";
 import { playDetent, playTick } from "../lib/sound";
 import { useStudioExtras } from "./EasterEggs";
@@ -203,7 +204,7 @@ export function SpringSegmented<T extends string>({
 }
 
 /**
- * Radial Bento score dial inspired by RefUI #2 & #4.
+ * MUI X Charts v9 Radial Gauge for Data Health scoring.
  */
 export function HealthGauge({
   score,
@@ -213,44 +214,40 @@ export function HealthGauge({
   color: string;
 }) {
   const clamped = Math.max(0, Math.min(100, score));
-  const r = 24;
-  const c = 2 * Math.PI * r;
-  const arc = c * 0.8;
-  const offset = arc * (1 - clamped / 100);
 
   return (
     <div className="health-gauge" aria-label="health score">
-      <svg width="62" height="62" viewBox="0 0 62 62" aria-hidden>
-        <circle
-          cx="31"
-          cy="31"
-          r={r}
-          fill="none"
-          stroke="currentColor"
-          strokeOpacity="0.16"
-          strokeWidth="5.5"
-          strokeDasharray={`${arc} ${c}`}
-          strokeLinecap="round"
-          transform="rotate(126 31 31)"
-        />
-        <circle
-          cx="31"
-          cy="31"
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth="5.5"
-          strokeDasharray={`${arc} ${c}`}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          transform="rotate(126 31 31)"
-        />
-      </svg>
-      <div className="health-gauge-center">
-        <span className="health-gauge-value" style={{ color }}>
-          {Number.isInteger(score) ? score : score.toFixed(1)}
-        </span>
-      </div>
+      <Gauge
+        width={68}
+        height={68}
+        value={clamped}
+        valueMin={0}
+        valueMax={100}
+        startAngle={-125}
+        endAngle={125}
+        innerRadius="72%"
+        outerRadius="100%"
+        cornerRadius="50%"
+        margin={0}
+        text={() => (Number.isInteger(score) ? `${score}` : score.toFixed(1))}
+        sx={{
+          [`& .${gaugeClasses.valueArc}`]: {
+            fill: color,
+          },
+          [`& .${gaugeClasses.referenceArc}`]: {
+            fill: "currentColor",
+            fillOpacity: 0.16,
+          },
+          [`& .${gaugeClasses.valueText}`]: {
+            fontSize: 13.5,
+            fontWeight: 750,
+            fontFamily: "var(--mono)",
+            "& text": {
+              fill: color,
+            },
+          },
+        }}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { radarClasses, RadarChart } from "@mui/x-charts";
 import { ChevronLeft, ChevronRight, GitBranch, X } from "lucide-react";
 import { Chart } from "../components/Chart";
 import { ExploreStudio } from "../components/ExploreStudio";
@@ -7,9 +8,10 @@ import { EvidenceBadge } from "../components/Feed";
 import { SpringSegmented } from "../components/kit";
 import { Badge, ErrorBox, Loading } from "../components/ui";
 import { api } from "../lib/api";
-import type { DrillTarget } from "../lib/echartsAdapter";
+import type { DrillTarget } from "../lib/muiChartsAdapter";
 import { fmtNum, fmtPct } from "../lib/format";
 import { playTick } from "../lib/sound";
+import { useTheme } from "../lib/theme";
 import type { DrillFilter, ExploreMode, FeedItem, FindingDetail } from "../lib/types";
 import { useProject } from "./ProjectLayout";
 
@@ -24,6 +26,7 @@ function p(value: unknown): string {
 
 export function FindingPage() {
   const { project } = useProject();
+  const { tokens } = useTheme();
   const { runId = "", findingId = "" } = useParams();
   const navigate = useNavigate();
   const [detail, setDetail] = useState<FindingDetail | null>(null);
@@ -147,6 +150,8 @@ export function FindingPage() {
     }
     setDrillOpen(true);
   };
+
+  const scoreEntries = Object.entries(detail.score_components);
 
   return (
     <>
@@ -504,10 +509,68 @@ export function FindingPage() {
             </div>
 
             <div className="inspector-section">
-              <h2 className="filter-heading" style={{ marginBottom: 6 }}>Ranking breakdown (#{detail.rank})</h2>
+              <div className="spread" style={{ marginBottom: 4 }}>
+                <h2 className="filter-heading" style={{ margin: 0 }}>Ranking breakdown (#{detail.rank})</h2>
+                <span className="mono small" style={{ fontWeight: 700, color: "var(--brand)" }}>
+                  {fmtNum(detail.score, 3)}
+                </span>
+              </div>
+
+              {scoreEntries.length >= 3 ? (
+                <div style={{ margin: "4px -10px 6px" }}>
+                  <RadarChart
+                    height={196}
+                    shape="circular"
+                    divisions={4}
+                    stripeColor={(idx) =>
+                      idx % 2 === 1
+                        ? tokens.isDark
+                          ? "rgba(56, 189, 248, 0.05)"
+                          : "rgba(21, 101, 112, 0.045)"
+                        : "none"
+                    }
+                    hideLegend
+                    margin={{ top: 18, right: 48, bottom: 18, left: 48 }}
+                    radar={{
+                      max: 1,
+                      labelGap: 7,
+                      metrics: scoreEntries.map(([k]) => ({
+                        name: k[0].toUpperCase() + k.slice(1),
+                        min: 0,
+                        max: 1,
+                      })),
+                    }}
+                    series={[
+                      {
+                        id: "rank-radar",
+                        label: "Score component",
+                        data: scoreEntries.map(([, v]) => Math.max(0, Math.min(1, Number(v)))),
+                        color: tokens.primary,
+                        fillArea: true,
+                        valueFormatter: (v) => fmtNum(v, 2),
+                      },
+                    ]}
+                    sx={{
+                      [`& .${radarClasses.axisLabel}`]: {
+                        fill: tokens.text,
+                        fontSize: 12,
+                        fontWeight: 600,
+                      },
+                      [`& .${radarClasses.gridDivider}, & .${radarClasses.gridRadial}`]: {
+                        stroke: tokens.splitLine,
+                      },
+                      [`& .${radarClasses.seriesArea}`]: {
+                        fillOpacity: 0.28,
+                        strokeWidth: 2.3,
+                      },
+                    }}
+                  />
+                </div>
+              ) : null}
+
               <table className="plain">
                 <tbody>
-                  {Object.entries(detail.score_components).map(([k, v]) => (
+                  {scoreEntries.map(([k, v]) => (
                     <tr key={k}>
                       <td style={{ paddingLeft: 0 }}>{k}</td>
                       <td className="num" style={{ paddingRight: 0 }}>

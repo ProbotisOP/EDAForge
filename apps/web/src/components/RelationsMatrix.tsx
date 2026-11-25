@@ -1,33 +1,34 @@
-import { useEffect, useMemo, useRef } from "react";
-import * as echarts from "echarts";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { AdaptedChart } from "../lib/muiChartsAdapter";
 import { useTheme } from "../lib/theme";
 import type { Universe, UniverseEdge } from "../lib/types";
+import { MuiChartSurface } from "./Chart";
 import { signOf, type Lens, type SignFilter, visible } from "./Universe";
 
 const ROLE_PALETTE_DARK: Record<string, string> = {
-  numeric: "#38BDF8",
-  categorical: "#A78BFA",
-  boolean: "#2DD4BF",
-  datetime: "#F59E0B",
-  source: "#10B981",
-  other: "#94A3B8",
+  numeric: "#4CC9F0",
+  categorical: "#5EEAD4",
+  boolean: "#34D399",
+  datetime: "#FBBF24",
+  source: "#93C5FD",
+  other: "#A2B3BC",
 };
 
 const ROLE_PALETTE_LIGHT: Record<string, string> = {
-  numeric: "#0284C7",
-  categorical: "#7C3AED",
-  boolean: "#0D9488",
-  datetime: "#D97706",
-  source: "#059669",
-  other: "#64748B",
+  numeric: "#155861",
+  categorical: "#2B59C3",
+  boolean: "#0D6E66",
+  datetime: "#B45309",
+  source: "#19383D",
+  other: "#566670",
 };
 
 function edgeHex(e: UniverseEdge, isDark: boolean): string {
   const s = signOf(e);
-  if (s === "formula") return isDark ? "#FBBF24" : "#D97706";
-  if (s === "up") return isDark ? "#22D3EE" : "#0284C7";
-  if (s === "down") return isDark ? "#FB7185" : "#E11D48";
-  return isDark ? "#A78BFA" : "#7C3AED";
+  if (s === "formula") return isDark ? "#FBBF24" : "#B45309";
+  if (s === "up") return isDark ? "#4CC9F0" : "#155861";
+  if (s === "down") return isDark ? "#FB7185" : "#C84B31";
+  return isDark ? "#34D399" : "#0D6E66";
 }
 
 export function NetworkGraph2D({
@@ -51,181 +52,279 @@ export function NetworkGraph2D({
 }) {
   const { tokens } = useTheme();
   const hostRef = useRef<HTMLDivElement>(null);
-  const instRef = useRef<echarts.ECharts | null>(null);
-  const handlers = useRef({ onSelectNode, onSelectEdge });
-  handlers.current = { onSelectNode, onSelectEdge };
+  const [size, setSize] = useState<{ w: number; h: number }>({ w: 860, h: 520 });
+  const [tip, setTip] = useState<{ x: number; y: number; lines: string[] } | null>(null);
+
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 40 && r.height > 40) {
+        setSize({ w: Math.round(r.width), h: Math.round(r.height) });
+      }
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const shownEdges = useMemo(
     () => universe.edges.filter((e) => visible(e, lens, signs)),
     [universe.edges, lens, signs],
   );
 
-  const option = useMemo<echarts.EChartsOption>(() => {
-    const roleColors = tokens.isDark ? ROLE_PALETTE_DARK : ROLE_PALETTE_LIGHT;
-    const connectedSet = new Set<string>();
-    if (selectedNode) {
-      connectedSet.add(selectedNode);
-      for (const e of shownEdges) {
-        if (e.source === selectedNode) connectedSet.add(e.target);
-        if (e.target === selectedNode) connectedSet.add(e.source);
-        if (e.via === selectedNode) {
-          connectedSet.add(e.source);
-          connectedSet.add(e.target);
-        }
-      }
-    }
-
-    // Deduplicate multi-edges between same pair by keeping strongest edge for clean visual layout
+  const cleanEdges = useMemo(() => {
     const bestByPair = new Map<string, UniverseEdge>();
     for (const e of shownEdges) {
       const key = [e.source, e.target].sort().join("::") + "::" + e.kind;
       const prev = bestByPair.get(key);
       if (!prev || e.score > prev.score) bestByPair.set(key, e);
     }
-    const cleanEdges = [...bestByPair.values()];
+    return [...bestByPair.values()];
+  }, [shownEdges]);
 
-    const nodes = universe.nodes.map((n) => {
-      const dimmed = Boolean(selectedNode && !connectedSet.has(n.id));
-      const isSel = n.id === selectedNode;
-      const size = n.is_target ? 38 : Math.min(32, 14 + n.degree * 2.2);
-      const baseColor = n.is_target ? "#F59E0B" : (roleColors[n.role] ?? roleColors.other);
+  const positions = useMemo(() => {
+    const nodes = universe.nodes;
+    const n = nodes.length || 1;
+    const cx = size.w / 2;
+    const cy = size.h / 2;
+    const rad = Math.max(90, Math.min(size.w, size.h) * 0.36);
 
+    const pts = nodes.map((nd, idx) => {
+      const angle = (2 * Math.PI * idx) / n - Math.PI / 2;
       return {
-        id: n.id,
-        name: n.derived ? `ƒ ${n.id}` : n.id,
-        symbolSize: size,
-        value: n.degree,
-        itemStyle: {
-          color: baseColor,
-          opacity: dimmed ? 0.22 : 1,
-          borderColor: isSel ? tokens.text : n.alerts.length ? "#EF4444" : tokens.isDark ? "#17191D" : "#FFFFFF",
-          borderWidth: isSel ? 3 : n.alerts.length ? 2.2 : 1.5,
-          shadowBlur: 0,
-        },
-        label: {
-          show: true,
-          position: "right" as const,
-          color: dimmed ? tokens.subtext : tokens.text,
-          fontSize: n.is_target || isSel ? 12.5 : 11.5,
-          fontWeight: n.is_target || isSel ? ("bold" as const) : ("normal" as const),
-          formatter: () => (n.derived ? `ƒ ${n.id}` : n.id),
-        },
+        id: nd.id,
+        x: cx + rad * Math.cos(angle),
+        y: cy + rad * Math.sin(angle),
+        vx: 0,
+        vy: 0,
       };
     });
 
-    // Pairwise curvature when two edges connect the same nodes
-    const pairCount = new Map<string, number>();
-    const links = cleanEdges.map((e) => {
-      const pk = [e.source, e.target].sort().join("::");
-      const idx = pairCount.get(pk) ?? 0;
-      pairCount.set(pk, idx + 1);
-      const isSel = e.id === selectedEdge;
-      const touchesSel = !selectedNode || e.source === selectedNode || e.target === selectedNode || e.via === selectedNode;
-      return {
-        source: e.source,
-        target: e.target,
-        edgeId: e.id,
-        headline: e.headline,
-        effectText: e.effect_text,
-        grade: e.grade,
-        lineStyle: {
-          color: edgeHex(e, tokens.isDark),
-          width: isSel ? 4 : 1.4 + e.strength * 2.8,
-          type: e.confirmed ? ("solid" as const) : ("dashed" as const),
-          opacity: isSel ? 1 : touchesSel ? 0.82 : 0.1,
-          curveness: idx === 0 ? 0.08 : 0.24 * (idx % 2 === 1 ? 1 : -1),
-        },
-      };
-    });
+    if (layoutMode === "circular" || nodes.length <= 2) {
+      return new Map(pts.map((p) => [p.id, { x: p.x, y: p.y }]));
+    }
 
-    return {
-      animationDurationUpdate: 380,
-      tooltip: {
-        backgroundColor: tokens.tooltipBg,
-        borderColor: tokens.tooltipBorder,
-        borderWidth: 1,
-        textStyle: { color: tokens.tooltipText, fontSize: 12 },
-        formatter: (params: unknown) => {
-          const p = params as { dataType?: string; data?: Record<string, unknown> };
-          if (p.dataType === "edge" && p.data) {
-            return [
-              `<div style="font-weight:600;max-width:260px;white-space:normal">${String(p.data.headline ?? "")}</div>`,
-              p.data.effectText ? `<div style="margin-top:3px">${String(p.data.effectText)}</div>` : "",
-              `<div style="opacity:.75;margin-top:2px">${p.data.grade ? `Grade ${p.data.grade}` : "Exact formula"} · Click to inspect</div>`,
-            ].join("");
-          }
-          if (p.dataType === "node" && p.data) {
-            const nodeObj = universe.nodes.find((x) => x.id === p.data?.id);
-            if (!nodeObj) return "";
-            return [
-              `<div style="font-weight:600">${nodeObj.id} (${nodeObj.role})</div>`,
-              `<div style="opacity:.8">${nodeObj.degree} relationships${nodeObj.alerts.length ? ` · ${nodeObj.alerts.length} quality alert(s)` : ""}</div>`,
-              `<div style="opacity:.65;margin-top:2px">Click to focus connections</div>`,
-            ].join("");
-          }
-          return "";
-        },
-      },
-      series: [
-        {
-          type: "graph",
-          layout: layoutMode,
-          roam: true,
-          draggable: true,
-          emphasis: {
-            focus: "adjacency",
-            lineStyle: { width: 3.6 },
-          },
-          force: {
-            repulsion: 460,
-            edgeLength: [95, 195],
-            gravity: 0.08,
-            layoutAnimation: true,
-          },
-          circular: { rotateLabel: false },
-          data: nodes,
-          links,
-        },
-      ],
-    };
-  }, [universe.nodes, shownEdges, tokens, layoutMode, selectedNode, selectedEdge]);
+    const idxMap = new Map(pts.map((p, i) => [p.id, i]));
+    const kIdeal = Math.sqrt((size.w * size.h) / Math.max(n, 2)) * 0.58;
 
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el) return;
-    const inst = echarts.init(el, undefined, { renderer: "canvas" });
-    instRef.current = inst;
-
-    inst.on("click", (params: unknown) => {
-      const p = params as { dataType?: string; data?: { id?: string; edgeId?: string } };
-      if (p.dataType === "node" && p.data?.id) {
-        handlers.current.onSelectNode(p.data.id);
-      } else if (p.dataType === "edge" && p.data?.edgeId) {
-        handlers.current.onSelectEdge(p.data.edgeId);
+    for (let iter = 0; iter < 80; iter++) {
+      const temp = (1 - iter / 80) * 18;
+      for (const p of pts) {
+        p.vx = 0;
+        p.vy = 0;
       }
-    });
-
-    inst.getZr().on("click", (ev: { target?: unknown }) => {
-      if (!ev.target) {
-        handlers.current.onSelectNode(null);
-        handlers.current.onSelectEdge(null);
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          const dx = pts[i].x - pts[j].x;
+          const dy = pts[i].y - pts[j].y;
+          const dist = Math.max(8, Math.hypot(dx, dy));
+          const rep = (kIdeal * kIdeal) / dist;
+          const fx = (dx / dist) * rep;
+          const fy = (dy / dist) * rep;
+          pts[i].vx += fx;
+          pts[i].vy += fy;
+          pts[j].vx -= fx;
+          pts[j].vy -= fy;
+        }
       }
-    });
+      for (const e of cleanEdges) {
+        const ia = idxMap.get(e.source);
+        const ib = idxMap.get(e.target);
+        if (ia === undefined || ib === undefined) continue;
+        const dx = pts[ia].x - pts[ib].x;
+        const dy = pts[ia].y - pts[ib].y;
+        const dist = Math.max(8, Math.hypot(dx, dy));
+        const att = ((dist * dist) / kIdeal) * (0.45 + e.strength * 0.4);
+        const fx = (dx / dist) * att;
+        const fy = (dy / dist) * att;
+        pts[ia].vx -= fx;
+        pts[ia].vy -= fy;
+        pts[ib].vx += fx;
+        pts[ib].vy += fy;
+      }
+      for (const p of pts) {
+        p.vx += (cx - p.x) * 0.06;
+        p.vy += (cy - p.y) * 0.06;
+        const mag = Math.hypot(p.vx, p.vy) || 1;
+        p.x += (p.vx / mag) * Math.min(mag, temp);
+        p.y += (p.vy / mag) * Math.min(mag, temp);
+        p.x = Math.max(76, Math.min(size.w - 110, p.x));
+        p.y = Math.max(46, Math.min(size.h - 46, p.y));
+      }
+    }
 
-    const ro = new ResizeObserver(() => inst.resize());
-    ro.observe(el);
-    return () => {
-      ro.disconnect();
-      inst.dispose();
-      instRef.current = null;
-    };
-  }, []);
+    return new Map(pts.map((p) => [p.id, { x: p.x, y: p.y }]));
+  }, [universe.nodes, cleanEdges, layoutMode, size]);
 
-  useEffect(() => {
-    instRef.current?.setOption(option, { notMerge: true });
-  }, [option]);
+  const connectedSet = useMemo(() => {
+    const set = new Set<string>();
+    if (!selectedNode) return set;
+    set.add(selectedNode);
+    for (const e of shownEdges) {
+      if (e.source === selectedNode) set.add(e.target);
+      if (e.target === selectedNode) set.add(e.source);
+      if (e.via === selectedNode) {
+        set.add(e.source);
+        set.add(e.target);
+      }
+    }
+    return set;
+  }, [selectedNode, shownEdges]);
 
-  return <div ref={hostRef} className="relations-surface" data-testid="universe-canvas" />;
+  const roleColors = tokens.isDark ? ROLE_PALETTE_DARK : ROLE_PALETTE_LIGHT;
+  const pairSeen = new Map<string, number>();
+
+  return (
+    <div
+      ref={hostRef}
+      className="relations-surface"
+      data-testid="universe-canvas"
+      style={{ position: "relative" }}
+      onClick={() => {
+        onSelectNode(null);
+        onSelectEdge(null);
+      }}
+    >
+      <svg
+        width={size.w}
+        height={size.h}
+        viewBox={`0 0 ${size.w} ${size.h}`}
+        style={{ width: "100%", height: "100%", display: "block" }}
+      >
+        {cleanEdges.map((e) => {
+          const p0 = positions.get(e.source);
+          const p1 = positions.get(e.target);
+          if (!p0 || !p1) return null;
+          const pk = [e.source, e.target].sort().join("::");
+          const kIdx = pairSeen.get(pk) ?? 0;
+          pairSeen.set(pk, kIdx + 1);
+
+          const mx = (p0.x + p1.x) / 2;
+          const my = (p0.y + p1.y) / 2;
+          const dx = p1.x - p0.x;
+          const dy = p1.y - p0.y;
+          const len = Math.hypot(dx, dy) || 1;
+          const bend = (kIdx === 0 ? 0.1 : 0.24 * (kIdx % 2 === 1 ? 1 : -1)) * len;
+          const qx = mx - (dy / len) * bend;
+          const qy = my + (dx / len) * bend;
+
+          const isSel = e.id === selectedEdge;
+          const touchesSel =
+            !selectedNode ||
+            e.source === selectedNode ||
+            e.target === selectedNode ||
+            e.via === selectedNode;
+
+          return (
+            <path
+              key={e.id}
+              d={`M ${p0.x} ${p0.y} Q ${qx} ${qy} ${p1.x} ${p1.y}`}
+              fill="none"
+              stroke={edgeHex(e, tokens.isDark)}
+              strokeWidth={isSel ? 4 : 1.5 + e.strength * 2.6}
+              strokeDasharray={e.confirmed ? undefined : "5 4"}
+              strokeOpacity={isSel ? 1 : touchesSel ? 0.84 : 0.12}
+              style={{ cursor: "pointer" }}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onSelectEdge(e.id);
+              }}
+              onMouseEnter={(ev) => {
+                const box = hostRef.current?.getBoundingClientRect();
+                if (!box) return;
+                setTip({
+                  x: ev.clientX - box.left,
+                  y: ev.clientY - box.top,
+                  lines: [
+                    e.headline,
+                    ...(e.effect_text ? [e.effect_text] : []),
+                    `${e.grade ? `Grade ${e.grade}` : "Exact formula"} · Click to inspect`,
+                  ],
+                });
+              }}
+              onMouseLeave={() => setTip(null)}
+            />
+          );
+        })}
+
+        {universe.nodes.map((n) => {
+          const pos = positions.get(n.id);
+          if (!pos) return null;
+          const dimmed = Boolean(selectedNode && !connectedSet.has(n.id));
+          const isSel = n.id === selectedNode;
+          const r = n.is_target ? 16 : Math.min(14, 7 + n.degree * 1.1);
+          const fill = n.is_target
+            ? tokens.warning
+            : (roleColors[n.role] ?? roleColors.other);
+
+          return (
+            <g
+              key={n.id}
+              transform={`translate(${pos.x}, ${pos.y})`}
+              style={{ cursor: "pointer", opacity: dimmed ? 0.25 : 1 }}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onSelectNode(n.id);
+              }}
+              onMouseEnter={(ev) => {
+                const box = hostRef.current?.getBoundingClientRect();
+                if (!box) return;
+                setTip({
+                  x: ev.clientX - box.left,
+                  y: ev.clientY - box.top,
+                  lines: [
+                    `${n.id} (${n.role})`,
+                    `${n.degree} relationships${n.alerts.length ? ` · ${n.alerts.length} alert(s)` : ""}`,
+                    "Click to focus connections",
+                  ],
+                });
+              }}
+              onMouseLeave={() => setTip(null)}
+            >
+              <circle
+                r={r}
+                fill={fill}
+                stroke={
+                  isSel
+                    ? tokens.text
+                    : n.alerts.length
+                      ? tokens.negative
+                      : tokens.tooltipBg
+                }
+                strokeWidth={isSel ? 3 : 2}
+              />
+              <text
+                x={r + 6}
+                y={4}
+                fill={tokens.text}
+                fontSize={12}
+                fontWeight={n.is_target || isSel ? 700 : 500}
+                fontFamily="var(--sans)"
+              >
+                {n.derived ? `ƒ ${n.id}` : n.id}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+
+      {tip ? (
+        <div
+          className="mui-bento-float-tip"
+          style={{ left: Math.max(8, tip.x + 14), top: Math.max(8, tip.y - 12) }}
+        >
+          {tip.lines.map((line, i) => (
+            <div key={i} className={i === 0 ? "tip-head" : "tip-row"}>
+              {line}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function AssociationMatrixView({
@@ -233,7 +332,6 @@ export function AssociationMatrixView({
   lens,
   signs,
   selectedEdge,
-  onSelectNode,
   onSelectEdge,
 }: {
   universe: Universe;
@@ -245,11 +343,22 @@ export function AssociationMatrixView({
 }) {
   const { tokens } = useTheme();
   const hostRef = useRef<HTMLDivElement>(null);
-  const instRef = useRef<echarts.ECharts | null>(null);
-  const handlers = useRef({ onSelectNode, onSelectEdge });
-  handlers.current = { onSelectNode, onSelectEdge };
+  const [height, setHeight] = useState(480);
 
-  const { orderedCols, cells, cellEdgeMap } = useMemo(() => {
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      if (r.height > 120) setHeight(Math.round(r.height));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const adapted = useMemo<AdaptedChart>(() => {
     const shown = universe.edges.filter((e) => visible(e, lens, signs));
     const activeNodes = [...universe.nodes].sort((a, b) => {
       if (a.is_target !== b.is_target) return a.is_target ? -1 : 1;
@@ -273,124 +382,56 @@ export function AssociationMatrixView({
       }
     }
 
-    const matrixCells: [number, number, number, string, string][] = [];
-    for (let i = 0; i < cols.length; i++) {
-      for (let j = 0; j < cols.length; j++) {
-        if (i === j) continue;
-        const e = edgeLookup.get(`${i}:${j}`);
+    const cells = [];
+    for (let yi = 0; yi < cols.length; yi++) {
+      for (let xi = 0; xi < cols.length; xi++) {
+        if (xi === yi) continue;
+        const e = edgeLookup.get(`${xi}:${yi}`);
         if (!e) continue;
         const signedVal =
           e.estimate !== null
             ? Math.max(-1, Math.min(1, e.estimate))
             : (e.sign === -1 ? -1 : 1) * Math.max(0.25, e.strength);
-        matrixCells.push([i, j, Number(signedVal.toFixed(3)), e.grade ?? "ƒ", e.id]);
+        cells.push({
+          xi,
+          yi,
+          value: Number(signedVal.toFixed(3)),
+          badge: e.grade ?? "ƒ",
+          selected: e.id === selectedEdge,
+          tooltipLines: [
+            e.headline,
+            ...(e.effect_text ? [e.effect_text] : []),
+            `${e.grade ? `Grade ${e.grade}` : "Formula"} · Click cell to inspect`,
+          ],
+          drill: { column: "__edge__", value: e.id },
+        });
       }
     }
 
-    return { orderedCols: cols, cells: matrixCells, cellEdgeMap: edgeLookup };
-  }, [universe.nodes, universe.edges, lens, signs]);
-
-  const option = useMemo<echarts.EChartsOption>(
-    () => ({
-      animationDuration: 320,
-      tooltip: {
-        backgroundColor: tokens.tooltipBg,
-        borderColor: tokens.tooltipBorder,
-        borderWidth: 1,
-        textStyle: { color: tokens.tooltipText, fontSize: 12 },
-        formatter: (params: unknown) => {
-          const val = (params as { value?: [number, number, number, string, string] })?.value;
-          if (!val) return "";
-          const edge = cellEdgeMap.get(`${val[0]}:${val[1]}`);
-          if (!edge) return "";
-          return [
-            `<div style="font-weight:600;max-width:260px;white-space:normal">${edge.headline}</div>`,
-            edge.effect_text ? `<div style="margin-top:3px">${edge.effect_text}</div>` : "",
-            `<div style="opacity:.75;margin-top:2px">${edge.grade ? `Grade ${edge.grade}` : "Formula"} · Click cell to inspect</div>`,
-          ].join("");
-        },
-      },
-      grid: { top: 24, right: 28, bottom: 84, left: 130, containLabel: false },
-      xAxis: {
-        type: "category",
-        data: orderedCols,
-        axisLabel: { color: tokens.axisLabel, fontSize: 11, rotate: 38 },
-        splitArea: { show: true, areaStyle: { color: ["transparent", tokens.isDark ? "rgba(255,255,255,0.015)" : "rgba(0,0,0,0.015)"] } },
-      },
-      yAxis: {
-        type: "category",
-        data: orderedCols,
-        axisLabel: { color: tokens.text, fontSize: 11, width: 118, overflow: "truncate" },
-      },
-      visualMap: {
+    return {
+      drillColumn: "__edge__",
+      model: {
+        kind: "heatmap",
+        xCategories: cols,
+        yCategories: cols,
         min: -1,
         max: 1,
-        calculable: false,
-        orient: "horizontal",
-        right: 24,
-        bottom: 10,
-        itemWidth: 12,
-        itemHeight: 120,
-        text: ["Positive / Strong", "Negative"],
-        textStyle: { color: tokens.subtext, fontSize: 11 },
-        inRange: { color: tokens.divergingRamp },
+        ramp: tokens.divergingRamp,
+        diverging: true,
+        cells,
       },
-      series: [
-        {
-          type: "heatmap",
-          data: cells.map((c) => ({
-            value: c,
-            itemStyle:
-              c[4] === selectedEdge
-                ? { borderColor: tokens.warning, borderWidth: 2.5 }
-                : undefined,
-          })),
-          label: {
-            show: orderedCols.length <= 16,
-            formatter: (p: unknown) => {
-              const v = (p as { value?: [number, number, number, string] })?.value;
-              return v ? v[3] : "";
-            },
-            fontSize: 10,
-            fontWeight: "bold",
-            color: tokens.text,
-          },
-          itemStyle: {
-            borderColor: tokens.isDark ? "rgba(148, 163, 184, 0.28)" : "#CBD5E1",
-            borderWidth: 1.5,
-            borderRadius: 3,
-          },
-        },
-      ],
-    }),
-    [orderedCols, cells, cellEdgeMap, tokens, selectedEdge],
-  );
-
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el) return;
-    const inst = echarts.init(el, undefined, { renderer: "canvas" });
-    instRef.current = inst;
-
-    inst.on("click", (params: unknown) => {
-      const val = (params as { value?: [number, number, number, string, string] })?.value;
-      if (val?.[4]) {
-        handlers.current.onSelectEdge(val[4]);
-      }
-    });
-
-    const ro = new ResizeObserver(() => inst.resize());
-    ro.observe(el);
-    return () => {
-      ro.disconnect();
-      inst.dispose();
-      instRef.current = null;
     };
-  }, []);
+  }, [universe.nodes, universe.edges, lens, signs, tokens.divergingRamp, selectedEdge]);
 
-  useEffect(() => {
-    instRef.current?.setOption(option, { notMerge: true });
-  }, [option]);
-
-  return <div ref={hostRef} className="relations-surface" data-testid="universe-canvas" />;
+  return (
+    <div ref={hostRef} className="relations-surface" data-testid="universe-canvas">
+      <MuiChartSurface
+        adapted={adapted}
+        height={height}
+        onDrillTarget={(t) => {
+          if (t.column === "__edge__" && t.value) onSelectEdge(t.value);
+        }}
+      />
+    </div>
+  );
 }
